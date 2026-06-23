@@ -84,7 +84,7 @@
             font-size: 0.9rem;
         }
 
-        input[type="text"], input[type="date"], select, textarea {
+        input[type="text"], input[type="date"], input[type="number"], select, textarea {
             padding: 12px;
             border: 1px solid var(--border-color);
             border-radius: 5px;
@@ -217,6 +217,12 @@
         .btn-print {
             background-color: #7f8c8d;
             color: white;
+        }
+
+        .destaque-resultado {
+            font-weight: bold;
+            background-color: #eef2f3;
+            color: #2c3e50;
         }
 
         @media (min-width: 600px) {
@@ -501,6 +507,47 @@
         </table>
         <textarea class="observacoes" placeholder="Modalidade avaliada (Kihon Ippon, Jiyu Ippon, Jiyu Kumite) e anotações..."></textarea>
 
+        <div class="section-title">4. Notas Técnicas</div>
+        <div class="grid-dados">
+            <div class="form-group">
+                <label for="nota-kihon">Nota Kihon (0 a 10):</label>
+                <input type="number" id="nota-kihon" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
+            </div>
+            <div class="form-group">
+                <label for="nota-kata">Nota Kata (0 a 10):</label>
+                <input type="number" id="nota-kata" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
+            </div>
+            <div class="form-group">
+                <label for="nota-kumite">Nota Kumite (0 a 10):</label>
+                <input type="number" id="nota-kumite" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
+            </div>
+            <div class="form-group">
+                <label for="nota-perguntas">Nota Perguntas (Peso 0.2 cada):</label>
+                <select id="nota-perguntas" onchange="calcularAutomatico()">
+                    <option value="0.0">0.0 (Nenhuma correta)</option>
+                    <option value="0.2">0.2 (1 correta)</option>
+                    <option value="0.4">0.4 (2 corretas)</option>
+                    <option value="0.6">0.6 (3 corretas)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="nota-kata-acima">Kata acima da faixa:</label>
+                <select id="nota-kata-acima" onchange="calcularAutomatico()">
+                    <option value="0.0">0.0 (Não executou)</option>
+                    <option value="0.5">+0.5 (Bônus)</option>
+                    <option value="-0.5">-0.5 (Penalidade)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="saldo-total">Saldo Total das Notas:</label>
+                <input type="text" id="saldo-total" class="destaque-resultado" readonly value="0.00">
+            </div>
+            <div class="form-group">
+                <label for="media-final">Média Final (Dividido por 3):</label>
+                <input type="text" id="media-final" class="destaque-resultado" readonly value="0.00" style="color: var(--primary-color);">
+            </div>
+        </div>
+
         <div class="section-title">Parecer da Banca Examinadora</div>
         <div class="grid-dados">
             <div class="form-group">
@@ -512,8 +559,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="nota">Conceito Geral / Média:</label>
-                <input type="text" id="nota" placeholder="Ex: Precisa melhorar / Excelente">
+                <label for="nota">Conceito Geral (Anotações Livres):</label>
+                <textarea id="nota" style="height: 90px; resize: vertical;" placeholder="Insira aqui anotações extras da banca..."></textarea>
             </div>
         </div>
 
@@ -530,21 +577,44 @@
 </div>
 
 <script>
+    function calcularAutomatico() {
+        const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
+        const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
+        const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
+        const nPerguntas = parseFloat(document.getElementById('nota-perguntas').value) || 0;
+        const nKataAcima = parseFloat(document.getElementById('nota-kata-acima').value) || 0;
+
+        const saldoTotal = nKihon + nKata + nKumite + nPerguntas + nKataAcima;
+        const mediaCalculada = saldoTotal / 3;
+
+        document.getElementById('saldo-total').value = saldoTotal.toFixed(2);
+        document.getElementById('media-final').value = mediaCalculada.toFixed(2);
+    }
+
     function enviarEmailSensei() {
         const nome = document.getElementById('nome').value;
         const data = document.getElementById('data').value;
         const faixaAtual = document.getElementById('faixa-atual').value;
         const faixaPretendida = document.getElementById('faixa-pretendida').value;
         const resultado = document.getElementById('resultado').value;
-        const nota = document.getElementById('nota').value;
         const avaliador = document.getElementById('avaliador').value;
+        const anotacoesBanca = document.getElementById('nota').value.trim();
 
         if (!nome) {
             alert('Por favor, digite o nome do aluno antes de enviar.');
             return;
         }
 
-        // Captura o texto das caixas de observações
+        const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
+        const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
+        const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
+        const nPerguntas = parseFloat(document.getElementById('nota-perguntas').value) || 0;
+        const nKataAcima = parseFloat(document.getElementById('nota-kata-acima').value) || 0;
+
+        const saldoTotal = document.getElementById('saldo-total').value;
+        const mediaCalculada = document.getElementById('media-final').value;
+
+        // Captura o texto das caixas de observações das seções
         const obsTextareas = document.querySelectorAll('.observacoes');
         const obsKihon = obsTextareas[0] ? obsTextareas[0].value.trim() : '';
         const obsKata = obsTextareas[1] ? obsTextareas[1].value.trim() : '';
@@ -553,13 +623,11 @@
         let pontosFortes = [];
         let melhorias = [];
 
-        // Coleta Kihon
+        // Coleta itens checados[cite: 1]
         document.querySelectorAll('input[name="kihon_good"]:checked').forEach(el => pontosFortes.push("Kihon: " + el.value));
         document.querySelectorAll('input[name="kihon_improve"]:checked').forEach(el => melhorias.push("Kihon: " + el.value));
-        // Coleta Kata
         document.querySelectorAll('input[name="kata_good"]:checked').forEach(el => pontosFortes.push("Kata: " + el.value));
         document.querySelectorAll('input[name="kata_improve"]:checked').forEach(el => melhorias.push("Kata: " + el.value));
-        // Coleta Kumite
         document.querySelectorAll('input[name="kumite_good"]:checked').forEach(el => pontosFortes.push("Kumite: " + el.value));
         document.querySelectorAll('input[name="kumite_improve"]:checked').forEach(el => melhorias.push("Kumite: " + el.value));
 
@@ -574,7 +642,19 @@
         corpo += `Exame para Faixa: ${faixaPretendida}\n`;
         corpo += `Avaliador: ${avaliador}\n`;
         corpo += `Status Final: ${resultado}\n`;
-        corpo += `Conceito/Nota Geral: ${nota ? nota : 'Não preenchida'}\n\n`;
+        corpo += `Conceito Geral / Anotações da Banca:\n${anotacoesBanca ? anotacoesBanca : 'Nenhuma anotação extra.'}\n\n`;
+
+        corpo += `==========================================\n`;
+        corpo += `NOTAS DA AVALIAÇÃO\n`;
+        corpo += `==========================================\n`;
+        corpo += `• Kihon: ${nKihon.toFixed(1)} / 10\n`;
+        corpo += `• Kata: ${nKata.toFixed(1)} / 10\n`;
+        corpo += `• Kumite: ${nKumite.toFixed(1)} / 10\n`;
+        corpo += `• Perguntas: ${nPerguntas.toFixed(1)}\n`;
+        corpo += `• Kata acima da faixa: ${nKataAcima >= 0 ? '+' : ''}${nKataAcima.toFixed(1)}\n`;
+        corpo += `------------------------------------------\n`;
+        corpo += `SALDO TOTAL DAS NOTAS: ${saldoTotal}\n`;
+        corpo += `MÉDIA FINAL (Soma / 3): ${mediaCalculada}\n\n`;
 
         corpo += `==========================================\n`;
         corpo += `PONTOS FORTES\n`;
@@ -594,7 +674,6 @@
             corpo += `Nenhum item marcado.\n`;
         }
 
-        // NOVA SEÇÃO: ANOTAÇÕES E OBSERVAÇÕES POR EXTENSO
         corpo += `\n==========================================\n`;
         corpo += `ANOTAÇÕES E OBSERVAÇÕES POR SEÇÃO\n`;
         corpo += `==========================================\n`;
@@ -606,7 +685,6 @@
 
         const tituloCompartilhar = `Avaliação Técnica - ${nome}`;
 
-        // Verifica compatibilidade com dispositivos móveis (iOS/Android)
         if (navigator.share) {
             navigator.share({
                 title: tituloCompartilhar,
@@ -623,7 +701,7 @@
 
             try {
                 document.execCommand('copy');
-                alert('Relatório completo (com as anotações) copiado! Cole no e-mail para luedo25@msn.com');
+                alert('Relatório completo (com as anotações extras da banca) copiado! Cole no e-mail para luedo25@msn.com');
                 window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}`;
             } catch (err) {
                 window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}&body=${encodeURIComponent(corpo.substring(0,1000))}`;
