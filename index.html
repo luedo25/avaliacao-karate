@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Avaliação Técnica - Karatê Shotokan</title>
+    <style>
+        :root {
+            --primary-color: #8b0000; /* Vermelho Shotokan */
+            --secondary-color: #2c3e50;
+            --bg-color: #f4f6f7;
+            --card-bg: #ffffff;
+            --border-color: #dcdde1;
+            --good-color: #2e7d32;
+            --improve-color: #e65100;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #2f3640;
+            margin: 0;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-top: 10px solid var(--primary-color);
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-size: 1.6rem;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--secondary-color);
+            font-size: 1rem;
+            margin-bottom: 25px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .section-title {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 12px 18px;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+
+        .grid-dados {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #4a5568;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"], input[type="date"], select, textarea {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.3s;
+            background-color: #fff;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
+        }
+
+        .eval-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            background-color: #fff;
+        }
+
+        .eval-table th, .eval-table td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .eval-table th {
+            background-color: #f8f9fa;
+            color: var(--secondary-color);
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .eval-table td:first-child {
+            font-weight: 700;
+            width: 20%;
+            color: #2c3e50;
+            font-size: 1rem;
+            line-height: 1.4;
+            background-color: #fcfcfc;
+        }
+
+        .eval-table td:first-child small {
+            font-weight: 400;
+            color: #7f8c8d;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: flex-start;
+            font-size: 0.95rem;
+            color: #333;
+            cursor: pointer;
+            line-height: 1.4;
+            padding: 6px 0;
+        }
+
+        .checkbox-item input {
+            margin-right: 12px;
+            margin-top: 2px;
+            cursor: pointer;
+            transform: scale(1.3);
+        }
+
+        .good-title { color: var(--good-color); font-weight: bold; width: 40%; }
+        .improve-title { color: var(--improve-color); font-weight: bold; width: 40%; }
+
+        .observacoes {
+            width: 100%;
+            height: 90px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-family: inherit;
+            margin-top: 10px;
+            border-color: var(--border-color);
+            background-color: #fafafa;
+        }
+
+        .actions {
+            margin-top: 35px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 16px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-submit {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-submit:hover { 
+            background-color: #660000; 
+        }
+
+        .btn-print {
+            background-color: #7f8c8d;
+            color: white;
+        }
+
+        @media (min-width: 600px) {
+            .grid-dados {
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            }
+            .grid-dados .span-2-desktop {
+                grid-column: span 2;
+            }
+            .actions {
+                flex-direction: row;
+                justify-content: flex-end;
+            }
+            .btn {
+                width: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .eval-table, .eval-table thead, .eval-table tbody, .eval-table th, .eval-table td, .eval-table tr {
+                display: block;
+                width: 100% !important;
+                box-sizing: border-box;
+            }
+            
+            .eval-table thead {
+                display: none;
+            }
+
+            .eval-table tr {
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 6px;
+                overflow: hidden;
+            }
+
+            .eval-table td {
+                border: none;
+                border-bottom: 1px dashed var(--border-color);
+            }
+
+            .eval-table td:first-child {
+                background-color: var(--secondary-color);
+                color: #fff;
+                font-size: 1.1rem;
+            }
+
+            .eval-table td:first-child small {
+                color: #b2bec3;
+            }
+
+            .eval-table td:nth-child(2)::before {
+                content: "Pontos Fortes (Coisas Boas):";
+                display: block;
+                color: var(--good-color);
+                font-weight: bold;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+                font-size: 0.85rem;
+            }
+
+            .eval-table td:nth-child(3)::before {
+                content: "Oportunidades de Melhoria:";
+                display: block;
+                color: var(--improve-color);
+                font-weight: bold;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+                font-size: 0.85rem;
+            }
+            
+            .eval-table td:last-child {
+                border-bottom: none;
+            }
+        }
+
+        @media print {
+            body { background-color: #fff; padding: 0; color: #000; }
+            .container { box-shadow: none; padding: 0; max-width: 100%; border-top: none; }
+            .actions { display: none; }
+            input, select, textarea { border: 1px solid #ccc; background: transparent; }
+            .section-title { background-color: #ddd !important; color: #000 !important; page-break-inside: avoid; }
+            .eval-table th { background-color: #eee !important; color: #000 !important; }
+            textarea { height: auto; min-height: 60px; }
+            
+            .eval-table, .eval-table thead, .eval-table tbody, .eval-table th, .eval-table td, .eval-table tr {
+                display: table !important;
+                width: 100% !important;
+            }
+            .eval-table thead { display: table-header-group !important; }
+            .eval-table tr { display: table-row !important; border: none; }
+            .eval-table td { display: table-cell !important; border: 1px solid var(--border-color); }
+            .eval-table td:first-child { background-color: #fcfcfc !important; color: #2c3e50 !important; }
+            .eval-table td::before { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <form id="formAvaliacao">
+        
+        <h1>Ficha de Avaliação Técnico-Marcial</h1>
+        <h2>Exame de Faixa & Evolução Marcial • Shotokan</h2>
+
+        <div class="grid-dados">
+            <div class="form-group span-2-desktop">
+                <label for="nome">Nome do Aluno:</label>
+                <input type="text" id="nome" required placeholder="Digite o nome completo do karateca">
+            </div>
+            <div class="form-group">
+                <label for="data">Data da Avaliação:</label>
+                <input type="date" id="data" required>
+            </div>
+        </div>
+
+        <div class="grid-dados">
+            <div class="form-group">
+                <label for="faixa-atual">Faixa Atual:</label>
+                <select id="faixa-atual">
+                    <option value="Branca (7º Kyu)">Branca (7º Kyu)</option>
+                    <option value="Amarela (6º Kyu)">Amarela (6º Kyu)</option>
+                    <option value="Vermelha (5º Kyu)">Vermelha (5º Kyu)</option>
+                    <option value="Laranja (4º Kyu)">Laranja (4º Kyu)</option>
+                    <option value="Verde (3º Kyu)">Verde (3º Kyu)</option>
+                    <option value="Roxa (2º Kyu)">Roxa (2º Kyu)</option>
+                    <option value="Marrom (1º Kyu)">Marrom (1º Kyu)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="faixa-pretendida">Exame para Faixa:</label>
+                <select id="faixa-pretendida">
+                    <option value="Amarela (6º Kyu)">Amarela (6º Kyu)</option>
+                    <option value="Vermelha (5º Kyu)">Vermelha (5º Kyu)</option>
+                    <option value="Laranja (4º Kyu)">Laranja (4º Kyu)</option>
+                    <option value="Verde (3º Kyu)">Verde (3º Kyu)</option>
+                    <option value="Roxa (2º Kyu)">Roxa (2º Kyu)</option>
+                    <option value="Marrom (1º Kyu)">Marrom (1º Kyu)</option>
+                    <option value="Preta (1º Dan)">Preta (1º Dan)</option>
+                    <option value="Preta (2º Dan ou superior)">Preta (2º Dan ou superior)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="avaliador">Avaliador (Sensei):</label>
+                <input type="text" id="avaliador" required placeholder="Nome do examinador">
+            </div>
+        </div>
+
+        <div class="section-title">1. Kihon (Fundamentos Técnicos)</div>
+        <table class="eval-table">
+            <thead>
+                <tr>
+                    <th>Critério</th>
+                    <th class="good-title">Pontos Fortes (Coisas Boas)</th>
+                    <th class="improve-title">Oportunidades de Melhoria</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Kihon Geral<br><small>Bases, Ataques, Defesas e Chutes</small></td>
+                    <td>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Bases (Dachi-Waza) firmes, estáveis e bem estruturadas"> 1. Bases firmes, estáveis e estruturadas</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Centro de gravidade mantido baixo e correto durante as transições"> 2. Centro de gravidade baixo e correto</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Alinhamento articular e distribuição de peso precisos"> 3. Alinhamento e peso bem distribuídos</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Uso perfeito do Hikite (recolhimento forte do punho oposto)"> 4. Uso forte e sincronizado do Hikite</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Kime (foco/potência terminal) bem definido e explosivo"> 5. Kime nítido e potente no final do golpe</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Rotação vigorosa e correta do quadril (Hanmi/Gyakuhanmi)"> 6. Rotação vigorosa do quadril</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Trajetória técnica linear e limpa nos socos e defesas"> 7. Trajetória limpa de braços (sem aberturas)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Chutes (Geri-Waza) com recolhimento de joelho rápido (Hiki-ashi)"> 8. Chutes com excelente Hiki-ashi</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Manutenção dos ombros relaxados e baixos ao aplicar força"> 9. Ombros relaxados ao golpear</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_good" value="Coordenação perfeita: sincronia dos pés e mãos no término do golpe"> 10. Sincronia perfeita de pés e mãos</label>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Corrigir o tamanho da base (Zenkutsu muito curta ou larga)"> 1. Ajustar comprimento/largura das bases</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Evitar oscilar ou levantar o nível da altura nos passos"> 2. Não oscilar ou subir a altura ao andar</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Não levantar o calcanhar da perna de trás (Zenkutsu-dachi)"> 3. Corrigir calcanhar de trás destacado</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Puxar o Hikite com mais energia e na linha correta da cintura"> 4. Intensificar energia do Hikite</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Trabalhar mais a explosão muscular e contração final (Kime)"> 5. Desenvolver maior explosão e Kime</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Evitar rigidez ou elevação excessiva nos ombros ao defender"> 6. Não tensionar/erguer os ombros</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Corrigir a abertura dos cotovelos nas defesas e socos"> 7. Fechar mais os cotovelos nas técnicas</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Melhorar o recolhimento (Hiki-ashi) imediatamente após os chutes"> 8. Melhorar retorno de perna pós-chute</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Estabilizar a base de apoio para não perder o equilíbrio nos chutes"> 9. Fortalecer perna de apoio nos chutes</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kihon_improve" value="Eliminar pequenos movimentos preparatórios ('tiques') antes do golpe"> 10. Eliminar sinais corporais antes de golpear</label>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <textarea class="observacoes" placeholder="Anotações específicas sobre o Kihon..."></textarea>
+
+        <div class="section-title">2. Kata (Forma e Expressão Marcial)</div>
+        <table class="eval-table">
+            <thead>
+                <tr>
+                    <th>Critério</th>
+                    <th class="good-title">Pontos Fortes (Coisas Boas)</th>
+                    <th class="improve-title">Oportunidades de Melhoria</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Kata Geral<br><small>Ritmo, Aplicação e Simetria</small></td>
+                    <td>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Memorização completa e sem hesitação das sequências"> 1. Memorização impecável das sequências</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Controle de ritmo (Choshi) excelente, alternando rápido/lento"> 2. Excelente alternância de ritmo e cadência</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Olhar firme e focado (Chakugan) direcionado antes de se mover"> 3. Olhar focado antecedendo as ações</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Kiai forte, imponente e projetado no momento técnico exato"> 4. Kiai potente e no tempo exato</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Demonstração clara de realismo e intenção de luta (Bunkai)"> 5. Expressão clara da intenção de luta</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Retorno preciso ao ponto exato de início do Kata (Embusen)"> 6. Retorno perfeito ao início do Embusen</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Equilíbrio estável e firmeza em giros rápidos de 90° e 180°"> 7. Estabilidade de tronco em giros e pivôs</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Sincronia refinada da respiração com a execução dos movimentos"> 8. Respiração correta e sincronizada</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Postura altiva e postura marcial irrepreensível do início ao fim"> 9. Postura e elegância marcial consistentes</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_good" value="Finalização técnica precisa, mantendo foco e guarda mental"> 10. Excelente fechamento e concentração final</label>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Controlar a pressa ou afobação na transição entre os golpes"> 1. Evitar pressa/correria entre as sequências</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Corrigir desvios nas linhas direcionais do Kata (Embusen)"> 2. Ajustar as linhas direcionais (Embusen)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Direcionar a cabeça/olhar com intenção antes de girar o corpo"> 3. Coordenar olhar com os giros de cabeça</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Aumentar a energia, projeção e volume do som do Kiai"> 4. Potencializar a energia e firmeza do Kiai</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Respeitar as pausas e os momentos de transição lenta do Kata"> 5. Valorizar mais as pausas obrigatórias</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Corrigir desequilíbrios ou oscilações ao travar movimentos fortes"> 6. Evitar oscilar a base após movimentos rápidos</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Evitar prender a respiração (apneia), permitindo o fluxo natural"> 7. Não reter o ar de forma tensionada</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Dar mais 'peso' e profundidade técnica aos golpes de defesa"> 8. Aplicar maior realismo técnico nas defesas</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Ajustar o comprimento das passadas para fechar no ponto zero"> 9. Regular passadas para voltar à marca inicial</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Manitê-se totalmente concentrado; evitar relaxar antes do cumprimento"> 10. Não relaxar a atitude antes da saudação final</label>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <textarea class="observacoes" placeholder="Kata(s) apresentado(s) e observações específicas..."></textarea>
+
+        <div class="section-title">3. Kumite (Combate e Aplicação Prática)</div>
+        <table class="eval-table">
+            <thead>
+                <tr>
+                    <th>Critério</th>
+                    <th class="good-title">Pontos Fortes (Coisas Boas)</th>
+                    <th class="improve-title">Oportunidades de Melhoria</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Kumite Geral<br><small>Combate Combinado ou Livre</small></td>
+                    <td>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Perfeito domínio e precisão na distância de combate (Ma-ai)"> 1. Domínio excelente da distância (Ma-ai)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Zanshin (alerta mental e físico) contínuo e impecável"> 2. Alerta e foco mental contínuo (Zanshin)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Controle de toque cirúrgico, demonstrando maestria técnica"> 3. Controle de toque absoluto (segurança)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Movimentação dinâmica (Ashi-Sabaki) leve e esquivas rápidas"> 4. Movimentação leve e esquivas rápidas</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Iniciativa de ataque perspicaz com uso técnico de fintas"> 5. Boa iniciativa de ataque e uso de fintas</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Velocidade de reação instantânea nos contra-ataques (De-ai)"> 6. Contra-ataques velozes e oportunos</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Kamae (guarda) sempre alto, compacto e bem estruturado"> 7. Guarda alta, compacta e firme na luta</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Combinações fluidas de golpes (sequências de socos e chutes)"> 8. Boa variação de combinações ofensivas</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Forte espírito de luta (Espírito Marcial) com calma mental"> 9. Postura psicológica calma e destemida</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_good" value="Etiqueta, cortesia e respeito ao oponente exemplares"> 10. Respeito, cortesia e etiqueta exemplares</label>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="checkbox-group">
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Ajustar a distância para evitar golpes curtos ou exposição"> 1. Ajustar a distância (não golpear curto/exposto)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Manter o estado de prontidão (Zanshin) firme mesmo após golpear"> 2. Manter Zanshin ativo após atacar</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Moderar estritamente a força de impacto para evitar contato excessivo"> 3. Controlar a força do impacto (evitar contato)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Utilizar deslocamentos laterais (Tai-Sabaki); evitar recuos lineares"> 4. Mover-se mais lateralmente; evitar recuo linear</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Cuidado para não abrir ou baixar a guarda ao desferir ataques"> 5. Não baixar nem abrir a guarda ao atacar</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Diminuir o tempo de resposta; antecipar mais as intenções inimigas"> 6. Diminuir o tempo de reação ao ser atacado</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Variar as técnicas aplicadas para não se tornar um lutador previsível"> 7. Variar as técnicas (evitar ser previsível)</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Controlar o ímpeto e a ansiedade; atacar somente com brechas reais"> 8. Controlar a ansiedade; buscar brechas reais</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Manter a postura ereta e a técnica sob pressão física/cansaço"> 9. Não curvar o corpo sob pressão do oponente</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kumite_improve" value="Desenvolver maior confiança, atitude ofensiva e combatividade"> 10. Desenvolver mais determinação e ímpeto</label>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <textarea class="observacoes" placeholder="Modalidade avaliada (Kihon Ippon, Jiyu Ippon, Jiyu Kumite) e anotações..."></textarea>
+
+        <div class="section-title">Parecer da Banca Examinadora</div>
+        <div class="grid-dados">
+            <div class="form-group">
+                <label for="resultado">Status do Aluno:</label>
+                <select id="resultado" style="font-weight: bold; color: var(--primary-color);">
+                    <option value="APROVADO">APROVADO (Apto para Nova Graduação)</option>
+                    <option value="APROVADO COM RESTRIÇÕES">APROVADO COM OBSERVAÇÕES (Passou com ressalvas)</option>
+                    <option value="RETER PARA PRÓXIMO EXAME">RETER PARA PRÓXIMO EXAME (Necessita mais treino)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="nota">Conceito Geral / Média:</label>
+                <input type="text" id="nota" placeholder="Ex: Nota 9.0 / Conceito A / Excelente">
+            </div>
+        </div>
+
+        <div class="actions">
+            <button type="button" class="btn btn-print" onclick="window.print();">
+                💾 Salvar PDF / Imprimir
+            </button>
+            <button type="button" class="btn btn-submit" onclick="enviarEmailSensei();">
+                ✉️ Enviar para o Sensei (luedo25@msn.com)
+            </button>
+        </div>
+
+    </form>
+</div>
+
+<script>
+    function enviarEmailSensei() {
+        const nome = document.getElementById('nome').value;
+        const data = document.getElementById('data').value;
+        const faixaAtual = document.getElementById('faixa-atual').value;
+        const faixaPretendida = document.getElementById('faixa-pretendida').value;
+        const resultado = document.getElementById('resultado').value;
+        const nota = document.getElementById('nota').value;
+        const avaliador = document.getElementById('avaliador').value;
+
+        if (!nome) {
+            alert('Por favor, digite o nome do aluno antes de enviar.');
+            return;
+        }
+
+        // Captura o texto das caixas de observações
+        const obsTextareas = document.querySelectorAll('.observacoes');
+        const obsKihon = obsTextareas[0] ? obsTextareas[0].value.trim() : '';
+        const obsKata = obsTextareas[1] ? obsTextareas[1].value.trim() : '';
+        const obsKumite = obsTextareas[2] ? obsTextareas[2].value.trim() : '';
+
+        let pontosFortes = [];
+        let melhorias = [];
+
+        // Coleta Kihon
+        document.querySelectorAll('input[name="kihon_good"]:checked').forEach(el => pontosFortes.push("Kihon: " + el.value));
+        document.querySelectorAll('input[name="kihon_improve"]:checked').forEach(el => melhorias.push("Kihon: " + el.value));
+        // Coleta Kata
+        document.querySelectorAll('input[name="kata_good"]:checked').forEach(el => pontosFortes.push("Kata: " + el.value));
+        document.querySelectorAll('input[name="kata_improve"]:checked').forEach(el => melhorias.push("Kata: " + el.value));
+        // Coleta Kumite
+        document.querySelectorAll('input[name="kumite_good"]:checked').forEach(el => pontosFortes.push("Kumite: " + el.value));
+        document.querySelectorAll('input[name="kumite_improve"]:checked').forEach(el => melhorias.push("Kumite: " + el.value));
+
+        // Construção do texto estruturado
+        let corpo = `Oss, Sensei!\n\nSegue o relatório da avaliação técnica:\n\n`;
+        corpo += `==========================================\n`;
+        corpo += `DADOS DA AVALIAÇÃO\n`;
+        corpo += `==========================================\n`;
+        corpo += `Aluno: ${nome}\n`;
+        corpo += `Data: ${data ? data : 'Não informada'}\n`;
+        corpo += `Faixa Atual: ${faixaAtual}\n`;
+        corpo += `Exame para Faixa: ${faixaPretendida}\n`;
+        corpo += `Avaliador: ${avaliador}\n`;
+        corpo += `Status Final: ${resultado}\n`;
+        corpo += `Conceito/Nota Geral: ${nota ? nota : 'Não preenchida'}\n\n`;
+
+        corpo += `==========================================\n`;
+        corpo += `PONTOS FORTES\n`;
+        corpo += `==========================================\n`;
+        if (pontosFortes.length > 0) {
+            pontosFortes.forEach(item => { corpo += `• ${item}\n`; });
+        } else {
+            corpo += `Nenhum item marcado.\n`;
+        }
+
+        corpo += `\n==========================================\n`;
+        corpo += `OPORTUNIDADES DE MELHORIA\n`;
+        corpo += `==========================================\n`;
+        if (melhorias.length > 0) {
+            melhorias.forEach(item => { corpo += `• ${item}\n`; });
+        } else {
+            corpo += `Nenhum item marcado.\n`;
+        }
+
+        // NOVA SEÇÃO: ANOTAÇÕES E OBSERVAÇÕES POR EXTENSO
+        corpo += `\n==========================================\n`;
+        corpo += `ANOTAÇÕES E OBSERVAÇÕES POR SEÇÃO\n`;
+        corpo += `==========================================\n`;
+        corpo += `[Kihon]: ${obsKihon ? obsKihon : 'Nenhuma anotação.'}\n\n`;
+        corpo += `[Kata]: ${obsKata ? obsKata : 'Nenhuma anotação.'}\n\n`;
+        corpo += `[Kumite]: ${obsKumite ? obsKumite : 'Nenhuma anotação.'}\n`;
+
+        corpo += `\nOss!`;
+
+        const tituloCompartilhar = `Avaliação Técnica - ${nome}`;
+
+        // Verifica compatibilidade com dispositivos móveis (iOS/Android)
+        if (navigator.share) {
+            navigator.share({
+                title: tituloCompartilhar,
+                text: corpo
+            }).catch((error) => console.log('Erro ao compartilhar:', error));
+        } else {
+            const tArea = document.createElement("textarea");
+            tArea.value = corpo;
+            tArea.style.position = "fixed";
+            document.body.appendChild(tArea);
+            tArea.focus();
+            tArea.select();
+            tArea.setSelectionRange(0, 99999);
+
+            try {
+                document.execCommand('copy');
+                alert('Relatório completo (com as anotações) copiado! Cole no e-mail para luedo25@msn.com');
+                window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}`;
+            } catch (err) {
+                window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}&body=${encodeURIComponent(corpo.substring(0,1000))}`;
+            }
+            document.body.removeChild(tArea);
+        }
+    }
+</script>
+
+</body>
+</html>
