@@ -322,6 +322,7 @@
 </head>
 <body>
 
+
 <div class="container">
     <form id="formAvaliacao">
         
@@ -331,12 +332,17 @@
 
         <div class="grid-dados">
             <div class="form-group span-2-desktop">
-                <label for="nome">Nome do Aluno:</label>
-                <input type="text" id="nome" required placeholder="Digite o nome completo do karateca">
+                <label for="nome">Selecione ou Adicione o Aluno:</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="nome" required style="flex-grow: 1;">
+                        <option value="">-- Escolha um karateca ou clique em Novo --</option>
+                    </select>
+                    <button type="button" class="btn btn-submit" style="width: auto; padding: 0 15px;" onclick="adicionarNovoAluno()">➕ Novo</button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="data">Data da Avaliação:</label>
-                <input type="date" id="data" required>
+                <input type="text" id="data" value="28/07/2026" readonly>
             </div>
         </div>
 
@@ -415,7 +421,7 @@
                 </tr>
             </tbody>
         </table>
-        <textarea class="observacoes" placeholder="Anotações específicas sobre o Kihon..."></textarea>
+        <textarea id="obs_kihon" class="observacoes" placeholder="Anotações específicas sobre o Kihon..."></textarea>
 
         <div class="section-title">2. Kata (Forma e Expressão Marcial)</div>
         <table class="eval-table">
@@ -454,13 +460,13 @@
                             <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Evitar prender a respiração (apneia), permitindo o fluxo natural"> 7. Não reter o ar de forma tensionada</label>
                             <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Dar mais 'peso' e profundidade técnica aos golpes de defesa"> 8. Aplicar maior realismo técnico nas defesas</label>
                             <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Ajustar o comprimento das passadas para fechar no ponto zero"> 9. Regular passadas para voltar à marca inicial</label>
-                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Manitê-se totalmente concentrado; evitar relaxar antes do cumprimento"> 10. Não relaxar a atitude antes da saudação final</label>
+                            <label class="checkbox-item"><input type="checkbox" name="kata_improve" value="Manter-se totalmente concentrado; evitar relaxar antes do cumprimento"> 10. Não relaxar a atitude antes da saudação final</label>
                         </div>
                     </td>
                 </tr>
             </tbody>
         </table>
-        <textarea class="observacoes" placeholder="Kata(s) apresentado(s) e observações específicas..."></textarea>
+        <textarea id="obs_kata" class="observacoes" placeholder="Kata(s) apresentado(s) e observações específicas..."></textarea>
 
         <div class="section-title">3. Kumite (Combate e Aplicação Prática)</div>
         <table class="eval-table">
@@ -505,11 +511,11 @@
                 </tr>
             </tbody>
         </table>
-        <textarea class="observacoes" placeholder="Modalidade avaliada (Kihon Ippon, Jiyu Ippon, Jiyu Kumite) e anotações..."></textarea>
+        <textarea id="obs_kumite" class="observacoes" placeholder="Modalidade avaliada (Kihon Ippon, Jiyu Ippon, Jiyu Kumite) e anotações..."></textarea>
 
-        <div class="section-title">4. Notas Técnicas</div>
+<div class="section-title">4. Notas Técnicas</div>
         <div class="grid-dados">
-            <div class="form-group">
+           <div class="form-group">
                 <label for="nota-kihon">Nota Kihon (0 a 10):</label>
                 <input type="number" id="nota-kihon" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
             </div>
@@ -519,7 +525,7 @@
             </div>
             <div class="form-group">
                 <label for="nota-kumite">Nota Kumite (0 a 10):</label>
-                <input type="number" id="nota-kumite" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
+               <input type="number" id="nota-kumite" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
             </div>
             <div class="form-group">
                 <label for="nota-perguntas">Nota Perguntas (Peso 0.2 cada):</label>
@@ -527,7 +533,7 @@
                     <option value="0.0">0.0 (Nenhuma correta)</option>
                     <option value="0.2">0.2 (1 correta)</option>
                     <option value="0.4">0.4 (2 corretas)</option>
-                    <option value="0.6">0.6 (3 corretas)</option>
+                   <option value="0.6">0.6 (3 corretas)</option>
                 </select>
             </div>
             <div class="form-group">
@@ -539,14 +545,14 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="saldo-total">Saldo Total das Notas:</label>
+               <label for="saldo-total">Saldo Total das Notas:</label>
                 <input type="text" id="saldo-total" class="destaque-resultado" readonly value="0.00">
             </div>
             <div class="form-group">
                 <label for="media-final">Média Final (Dividido por 3):</label>
                 <input type="text" id="media-final" class="destaque-resultado" readonly value="0.00" style="color: var(--primary-color);">
             </div>
-        </div>
+        </div> 
 
         <div class="section-title">Parecer da Banca Examinadora</div>
         <div class="grid-dados">
@@ -559,12 +565,15 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="nota">Conceito Geral (Anotações Livres):</label>
-                <textarea id="nota" style="height: 90px; resize: vertical;" placeholder="Insira aqui anotações extras da banca..."></textarea>
+                <label for="nota">Conceito Geral / Média:</label>
+                <input type="text" id="nota" placeholder="Ex: Precisa melhorar / Excelente">
             </div>
         </div>
 
         <div class="actions">
+            <button type="button" class="btn btn-danger" onclick="removerAlunoAtual();" style="margin-right: auto;">
+                🗑️ Excluir Aluno Selecionado
+            </button>
             <button type="button" class="btn btn-print" onclick="window.print();">
                 💾 Salvar PDF / Imprimir
             </button>
@@ -577,7 +586,7 @@
 </div>
 
 <script>
-    function calcularAutomatico() {
+  function calcularAutomatico() {
         const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
         const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
         const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
@@ -590,22 +599,223 @@
         document.getElementById('saldo-total').value = saldoTotal.toFixed(2);
         document.getElementById('media-final').value = mediaCalculada.toFixed(2);
     }
+    const selectNome = document.getElementById('nome');
+    const form = document.getElementById('formAvaliacao');
+    let programmaticChange = false; // Flag para impedir loops de salvamento cruzado
+
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarListaAlunos();
+        
+        if (localStorage.getItem('avaliador_global')) {
+            document.getElementById('avaliador').value = localStorage.getItem('avaliador_global');
+        }
+        
+        const ultimoAtivo = localStorage.getItem('aluno_ativo_global');
+        if (ultimoAtivo && alunoExistenaLista(ultimoAtivo)) {
+            selectNome.value = ultimoAtivo;
+            carregarDadosAluno(ultimoAtivo);
+        } else {
+            limparFormulario();
+        }
+
+        // Eventos nativos acionados apenas por alteração humana em tempo real
+        form.addEventListener('input', (e) => {
+            if (e.target.id !== 'nome') salvarDadosAlunoAtual();
+        });
+        form.addEventListener('change', (e) => {
+            if (e.target.id !== 'nome') salvarDadosAlunoAtual();
+        });
+    });
+
+    function alunoExistenaLista(nomeAluno) {
+        const alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
+        return alunos.includes(nomeAluno);
+    }
+
+    function carregarListaAlunos() {
+        const alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
+        selectNome.innerHTML = '<option value="">-- Escolha um karateca ou clique em Novo --</option>';
+        
+        alunos.sort().forEach(aluno => {
+            const opt = document.createElement('option');
+            opt.value = aluno;
+            opt.textContent = aluno;
+            selectNome.appendChild(opt);
+        });
+    }
+
+    function adicionarNovoAluno() {
+        const novoNome = prompt("Digite o nome completo do novo aluno:");
+        if (!novoNome || novoNome.trim() === "") return;
+
+        const nomeFormatado = novoNome.trim();
+        let alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
+
+        if (!alunos.includes(nomeFormatado)) {
+            alunos.push(nomeFormatado);
+            localStorage.setItem('lista_karatecas', JSON.stringify(alunos));
+        }
+
+        carregarListaAlunos();
+        
+        // Ativa isolamento e limpa a tela ANTES de registrar o novo aluno
+        programmaticChange = true;
+        selectNome.value = nomeFormatado;
+        localStorage.setItem('aluno_ativo_global', nomeFormatado);
+        limparFormulario();
+        programmaticChange = false;
+
+        // Salva uma cópia limpa exclusiva para ele
+        salvarDadosAlunoAtual();
+    }
+
+    selectNome.addEventListener('change', (e) => {
+        if (programmaticChange) return;
+        const alunoSelecionado = e.target.value;
+        localStorage.setItem('aluno_ativo_global', alunoSelecionado);
+        
+        if (alunoSelecionado) {
+            carregarDadosAluno(alunoSelecionado);
+        } else {
+            limparFormulario();
+        }
+    });
+
+    function salvarDadosAlunoAtual() {
+        if (programmaticChange) return;
+        const aluno = selectNome.value;
+        
+        localStorage.setItem('avaliador_global', document.getElementById('avaliador').value);
+        
+        if (!aluno) return;
+
+        const dados = {
+            faixaAtual: document.getElementById('faixa-atual').value,
+            faixaPretendida: document.getElementById('faixa-pretendida').value,
+            resultado: document.getElementById('resultado').value,
+            nota: document.getElementById('nota').value,
+            obsKihon: document.getElementById('obs_kihon').value,
+            obsKata: document.getElementById('obs_kata').value,
+            obsKumite: document.getElementById('obs_kumite').value,
+            // NOVOS CAMPOS ADICIONADOS PARA SALVAMENTO INDIVIDUAL:
+            notaKihon: document.getElementById('nota-kihon').value,
+            notaKata: document.getElementById('nota-kata').value,
+            notaKumite: document.getElementById('nota-kumite').value,
+            notaPerguntas: document.getElementById('nota-perguntas').value,
+            notaKataAcima: document.getElementById('nota-kata-acima').value,
+            checkboxes: []
+        };
+
+        document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+            dados.checkboxes.push({ name: cb.name, value: cb.value });
+        });
+
+        localStorage.setItem('karateca_' + aluno, JSON.stringify(dados));
+    }
+
+    function carregarDadosAluno(aluno) {
+        programmaticChange = true;
+        limparFormulario();
+
+        const stringDados = localStorage.getItem('karateca_' + aluno);
+        if (!stringDados) {
+            programmaticChange = false;
+            return;
+        }
+
+        const dados = JSON.parse(stringDados);
+
+        if (dados.faixaAtual) document.getElementById('faixa-atual').value = dados.faixaAtual;
+        if (dados.faixaPretendida) document.getElementById('faixa-pretendida').value = dados.faixaPretendida;
+        if (dados.resultado) document.getElementById('resultado').value = dados.resultado;
+        if (dados.nota) document.getElementById('nota').value = dados.nota;
+        if (dados.obsKihon) document.getElementById('obs_kihon').value = dados.obsKihon;
+        if (dados.obsKata) document.getElementById('obs_kata').value = dados.obsKata;
+        if (dados.obsKumite) document.getElementById('obs_kumite').value = dados.obsKumite;
+
+        // REINSERÇÃO DOS VALORES SALVOS DE NOTAS NA TELA:
+        document.getElementById('nota-kihon').value = dados.notaKihon !== undefined ? dados.notaKihon : '0';
+        document.getElementById('nota-kata').value = dados.notaKata !== undefined ? dados.notaKata : '0';
+        document.getElementById('nota-kumite').value = dados.notaKumite !== undefined ? dados.notaKumite : '0';
+        document.getElementById('nota-perguntas').value = dados.notaPerguntas !== undefined ? dados.notaPerguntas : '0.0';
+        document.getElementById('nota-kata-acima').value = dados.notaKataAcima !== undefined ? dados.notaKataAcima : '0.0';
+
+        if (dados.checkboxes) {
+            dados.checkboxes.forEach(item => {
+                const cb = document.querySelector(`input[name="${item.name}"][value="${item.value}"]`);
+                if (cb) cb.checked = true;
+            });
+        }
+        
+        // Recalcula o saldo total e média com base nos dados carregados
+        calcularAutomatico();
+        
+        programmaticChange = false;
+    }
+
+    function limparFormulario() {
+        document.getElementById('faixa-atual').selectedIndex = 0;
+        document.getElementById('faixa-pretendida').selectedIndex = 0;
+        document.getElementById('resultado').selectedIndex = 0;
+        document.getElementById('nota').value = '';
+        document.getElementById('obs_kihon').value = '';
+        document.getElementById('obs_kata').value = '';
+        document.getElementById('obs_kumite').value = '';
+        
+        // LIMPEZA DOS CAMPOS DE NOTAS MARCADOS:
+        document.getElementById('nota-kihon').value = '0';
+        document.getElementById('nota-kata').value = '0';
+        document.getElementById('nota-kumite').value = '0';
+        document.getElementById('nota-perguntas').selectedIndex = 0;
+        document.getElementById('nota-kata-acima').selectedIndex = 0;
+        document.getElementById('saldo-total').value = '0.00';
+        document.getElementById('media-final').value = '0.00';
+        
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+    }
+
+    function removerAlunoAtual() {
+        const aluno = selectNome.value;
+        if (!aluno) {
+            alert("Selecione um aluno válido para excluir.");
+            return;
+        }
+
+        if (confirm(`Deseja apagar permanentemente a avaliação de "${aluno}"?`)) {
+            localStorage.removeItem('karateca_' + aluno);
+            
+            let alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
+            alunos = alunos.filter(a => a !== aluno);
+            localStorage.setItem('lista_karatecas', JSON.stringify(alunos));
+            
+            localStorage.removeItem('aluno_ativo_global');
+            
+            programmaticChange = true;
+            carregarListaAlunos();
+            limparFormulario();
+            programmaticChange = false;
+            alert("Aluno removido.");
+        }
+    }
 
     function enviarEmailSensei() {
-        const nome = document.getElementById('nome').value;
+        const nome = selectNome.value;
         const data = document.getElementById('data').value;
         const faixaAtual = document.getElementById('faixa-atual').value;
         const faixaPretendida = document.getElementById('faixa-pretendida').value;
         const resultado = document.getElementById('resultado').value;
+        const nota = document.getElementById('nota').value;
         const avaliador = document.getElementById('avaliador').value;
-        const anotacoesBanca = document.getElementById('nota').value.trim();
+		const anotacoesBanca = document.getElementById('nota').value.trim();
 
         if (!nome) {
-            alert('Por favor, digite o nome do aluno antes de enviar.');
+            alert('Por favor, selecione ou adicione o nome do aluno antes de enviar.');
             return;
         }
 
-        const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
+         const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
         const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
         const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
         const nPerguntas = parseFloat(document.getElementById('nota-perguntas').value) || 0;
@@ -683,7 +893,8 @@
 
         corpo += `\nOss!`;
 
-        const tituloCompartilhar = `Avaliação Técnica - ${nome}`;
+       // Define o Assunto do Email de forma automatizada
+       const tituloCompartilhar = `Avaliação Técnica - ${nome}`;
 
         if (navigator.share) {
             navigator.share({
@@ -691,6 +902,7 @@
                 text: corpo
             }).catch((error) => console.log('Erro ao compartilhar:', error));
         } else {
+            // Cria elemento oculto para forçar a cópia do texto longo sem quebrar o link
             const tArea = document.createElement("textarea");
             tArea.value = corpo;
             tArea.style.position = "fixed";
@@ -701,12 +913,14 @@
 
             try {
                 document.execCommand('copy');
-                alert('Relatório completo (com as anotações extras da banca) copiado! Cole no e-mail para luedo25@msn.com');
-                window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}`;
+                alert('Relatório copiado automaticamente! O e-mail vai abrir agora com o Assunto e Destinatário certos. Basta dar um "Colar" (Ctrl+V) no corpo do e-mail.');
             } catch (err) {
-                window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}&body=${encodeURIComponent(corpo.substring(0,1000))}`;
+                console.log('Erro ao copiar');
             }
             document.body.removeChild(tArea);
+
+            // Link enxuto e limpo: SEM o parâmetro &body que quebrava o link do e-mail
+            window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}`;
         }
     }
 </script>
