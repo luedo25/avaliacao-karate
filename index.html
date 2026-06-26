@@ -799,129 +799,106 @@
         }
     }
 
-    function enviarEmailSensei() {
-        const nome = selectNome.value;
-        const data = document.getElementById('data').value;
-        const faixaAtual = document.getElementById('faixa-atual').value;
-        const faixaPretendida = document.getElementById('faixa-pretendida').value;
-        const resultado = document.getElementById('resultado').value;
-        const nota = document.getElementById('nota').value;
-        const avaliador = document.getElementById('avaliador').value;
-		const anotacoesBanca = document.getElementById('nota').value.trim();
+function enviarEmailSensei() {
+    const nome = selectNome.value;
+    const data = document.getElementById('data').value;
+    const faixaAtual = document.getElementById('faixa-atual').value;
+    const faixaPretendida = document.getElementById('faixa-pretendida').value;
+    const resultado = document.getElementById('resultado').value;
+    const nota = document.getElementById('nota').value;
+    const avaliador = document.getElementById('avaliador').value;
+    const anotacoesBanca = document.getElementById('nota').value.trim();
 
-        if (!nome) {
-            alert('Por favor, selecione ou adicione o nome do aluno antes de enviar.');
-            return;
-        }
-
-         const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
-        const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
-        const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
-        const nPerguntas = parseFloat(document.getElementById('nota-perguntas').value) || 0;
-        const nKataAcima = parseFloat(document.getElementById('nota-kata-acima').value) || 0;
-
-        const saldoTotal = document.getElementById('saldo-total').value;
-        const mediaCalculada = document.getElementById('media-final').value;
-
-        // Captura o texto das caixas de observações das seções
-        const obsTextareas = document.querySelectorAll('.observacoes');
-        const obsKihon = obsTextareas[0] ? obsTextareas[0].value.trim() : '';
-        const obsKata = obsTextareas[1] ? obsTextareas[1].value.trim() : '';
-        const obsKumite = obsTextareas[2] ? obsTextareas[2].value.trim() : '';
-
-        let pontosFortes = [];
-        let melhorias = [];
-
-        // Coleta itens checados[cite: 1]
-        document.querySelectorAll('input[name="kihon_good"]:checked').forEach(el => pontosFortes.push("Kihon: " + el.value));
-        document.querySelectorAll('input[name="kihon_improve"]:checked').forEach(el => melhorias.push("Kihon: " + el.value));
-        document.querySelectorAll('input[name="kata_good"]:checked').forEach(el => pontosFortes.push("Kata: " + el.value));
-        document.querySelectorAll('input[name="kata_improve"]:checked').forEach(el => melhorias.push("Kata: " + el.value));
-        document.querySelectorAll('input[name="kumite_good"]:checked').forEach(el => pontosFortes.push("Kumite: " + el.value));
-        document.querySelectorAll('input[name="kumite_improve"]:checked').forEach(el => melhorias.push("Kumite: " + el.value));
-
-        // Construção do texto estruturado
-        let corpo = `Oss, Sensei!\n\nSegue o relatório da avaliação técnica:\n\n`;
-        corpo += `==========================================\n`;
-        corpo += `DADOS DA AVALIAÇÃO\n`;
-        corpo += `==========================================\n`;
-        corpo += `Aluno: ${nome}\n`;
-        corpo += `Data: ${data ? data : 'Não informada'}\n`;
-        corpo += `Faixa Atual: ${faixaAtual}\n`;
-        corpo += `Exame para Faixa: ${faixaPretendida}\n`;
-        corpo += `Avaliador: ${avaliador}\n`;
-        corpo += `Status Final: ${resultado}\n`;
-        corpo += `Conceito Geral / Anotações da Banca:\n${anotacoesBanca ? anotacoesBanca : 'Nenhuma anotação extra.'}\n\n`;
-
-        corpo += `==========================================\n`;
-        corpo += `NOTAS DA AVALIAÇÃO\n`;
-        corpo += `==========================================\n`;
-        corpo += `• Kihon: ${nKihon.toFixed(1)} / 10\n`;
-        corpo += `• Kata: ${nKata.toFixed(1)} / 10\n`;
-        corpo += `• Kumite: ${nKumite.toFixed(1)} / 10\n`;
-        corpo += `• Perguntas: ${nPerguntas.toFixed(1)}\n`;
-        corpo += `• Kata acima da faixa: ${nKataAcima >= 0 ? '+' : ''}${nKataAcima.toFixed(1)}\n`;
-        corpo += `------------------------------------------\n`;
-        corpo += `SALDO TOTAL DAS NOTAS: ${saldoTotal}\n`;
-        corpo += `MÉDIA FINAL (Soma / 3): ${mediaCalculada}\n\n`;
-
-        corpo += `==========================================\n`;
-        corpo += `PONTOS FORTES\n`;
-        corpo += `==========================================\n`;
-        if (pontosFortes.length > 0) {
-            pontosFortes.forEach(item => { corpo += `• ${item}\n`; });
-        } else {
-            corpo += `Nenhum item marcado.\n`;
-        }
-
-        corpo += `\n==========================================\n`;
-        corpo += `OPORTUNIDADES DE MELHORIA\n`;
-        corpo += `==========================================\n`;
-        if (melhorias.length > 0) {
-            melhorias.forEach(item => { corpo += `• ${item}\n`; });
-        } else {
-            corpo += `Nenhum item marcado.\n`;
-        }
-
-        corpo += `\n==========================================\n`;
-        corpo += `ANOTAÇÕES E OBSERVAÇÕES POR SEÇÃO\n`;
-        corpo += `==========================================\n`;
-        corpo += `[Kihon]: ${obsKihon ? obsKihon : 'Nenhuma anotação.'}\n\n`;
-        corpo += `[Kata]: ${obsKata ? obsKata : 'Nenhuma anotação.'}\n\n`;
-        corpo += `[Kumite]: ${obsKumite ? obsKumite : 'Nenhuma anotação.'}\n`;
-
-        corpo += `\nOss!`;
-
-       // Define o Assunto do Email de forma automatizada
-       const tituloCompartilhar = `Avaliação Técnica - ${nome}`;
-
-        if (navigator.share) {
-            navigator.share({
-                title: tituloCompartilhar,
-                text: corpo
-            }).catch((error) => console.log('Erro ao compartilhar:', error));
-        } else {
-            // Cria elemento oculto para forçar a cópia do texto longo sem quebrar o link
-            const tArea = document.createElement("textarea");
-            tArea.value = corpo;
-            tArea.style.position = "fixed";
-            document.body.appendChild(tArea);
-            tArea.focus();
-            tArea.select();
-            tArea.setSelectionRange(0, 99999);
-
-            try {
-                document.execCommand('copy');
-                alert('Relatório copiado automaticamente! O e-mail vai abrir agora com o Assunto e Destinatário certos. Basta dar um "Colar" (Ctrl+V) no corpo do e-mail.');
-            } catch (err) {
-                console.log('Erro ao copiar');
-            }
-            document.body.removeChild(tArea);
-
-            // Link enxuto e limpo: SEM o parâmetro &body que quebrava o link do e-mail
-            window.location.href = `mailto:luedo25@msn.com?subject=${encodeURIComponent(tituloCompartilhar)}`;
-        }
+    if (!nome) {
+        alert('Por favor, selecione ou adicione o nome do aluno antes de enviar.');
+        return;
     }
+
+    const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
+    const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
+    const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
+    const nPerguntas = parseFloat(document.getElementById('nota-perguntas').value) || 0;
+    const nKataAcima = parseFloat(document.getElementById('nota-kata-acima').value) || 0;
+
+    const saldoTotal = document.getElementById('saldo-total').value;
+    const mediaCalculada = document.getElementById('media-final').value;
+
+    // Captura o texto das caixas de observações das seções
+    const obsTextareas = document.querySelectorAll('.observacoes');
+    const obsKihon = obsTextareas[0] ? obsTextareas[0].value.trim() : '';
+    const obsKata = obsTextareas[1] ? obsTextareas[1].value.trim() : '';
+    const obsKumite = obsTextareas[2] ? obsTextareas[2].value.trim() : '';
+
+    let pontosFortes = [];
+    let melhorias = [];
+
+    // Coleta itens checados
+    document.querySelectorAll('input[name="kihon_good"]:checked').forEach(el => pontosFortes.push("Kihon: " + el.value));
+    document.querySelectorAll('input[name="kihon_improve"]:checked').forEach(el => melhorias.push("Kihon: " + el.value));
+    document.querySelectorAll('input[name="kata_good"]:checked').forEach(el => pontosFortes.push("Kata: " + el.value));
+    document.querySelectorAll('input[name="kata_improve"]:checked').forEach(el => melhorias.push("Kata: " + el.value));
+    document.querySelectorAll('input[name="kumite_good"]:checked').forEach(el => pontosFortes.push("Kumite: " + el.value));
+    document.querySelectorAll('input[name="kumite_improve"]:checked').forEach(el => melhorias.push("Kumite: " + el.value));
+
+    // Construção do texto estruturado
+    let corpo = `Oss, Sensei!\n\nSegue o relatório da avaliação técnica:\n\n`;
+    corpo += `==========================================\n`;
+    corpo += `DADOS DA AVALIAÇÃO\n`;
+    corpo += `==========================================\n`;
+    corpo += `Aluno: ${nome}\n`;
+    corpo += `Data: ${data ? data : 'Não informada'}\n`;
+    corpo += `Faixa Atual: ${faixaAtual}\n`;
+    corpo += `Exame para Faixa: ${faixaPretendida}\n`;
+    corpo += `Avaliador: ${avaliador}\n`;
+    corpo += `Status Final: ${resultado}\n`;
+    corpo += `Conceito Geral / Anotações da Banca:\n${anotacoesBanca ? anotacoesBanca : 'Nenhuma anotação extra.'}\n\n`;
+
+    corpo += `==========================================\n`;
+    corpo += `NOTAS DA AVALIAÇÃO\n`;
+    corpo += `==========================================\n`;
+    corpo += `• Kihon: ${nKihon.toFixed(1)} / 10\n`;
+    corpo += `• Kata: ${nKata.toFixed(1)} / 10\n`;
+    corpo += `• Kumite: ${nKumite.toFixed(1)} / 10\n`;
+    corpo += `• Perguntas: ${nPerguntas.toFixed(1)}\n`;
+    corpo += `• Kata acima da faixa: ${nKataAcima >= 0 ? '+' : ''}${nKataAcima.toFixed(1)}\n`;
+    corpo += `------------------------------------------\n`;
+    corpo += `SALDO TOTAL DAS NOTAS: ${saldoTotal}\n`;
+    corpo += `MÉDIA FINAL (Soma / 3): ${mediaCalculada}\n\n`;
+
+    corpo += `==========================================\n`;
+    corpo += `PONTOS FORTES\n`;
+    corpo += `==========================================\n`;
+    if (pontosFortes.length > 0) {
+        pontosFortes.forEach(item => { corpo += `• ${item}\n`; });
+    } else {
+        corpo += `Nenhum item marcado.\n`;
+    }
+
+    corpo += `\n==========================================\n`;
+    corpo += `OPORTUNIDADES DE MELHORIA\n`;
+    corpo += `==========================================\n`;
+    if (melhorias.length > 0) {
+        melhorias.forEach(item => { corpo += `• ${item}\n`; });
+    } else {
+        corpo += `Nenhum item marcado.\n`;
+    }
+
+    corpo += `\n==========================================\n`;
+    corpo += `ANOTAÇÕES E OBSERVAÇÕES POR SEÇÃO\n`;
+    corpo += `==========================================\n`;
+    corpo += `[Kihon]: ${obsKihon ? obsKihon : 'Nenhuma anotação.'}\n\n`;
+    corpo += `[Kata]: ${obsKata ? obsKata : 'Nenhuma anotação.'}\n\n`;
+    corpo += `[Kumite]: ${obsKumite ? obsKumite : 'Nenhuma anotação.'}\n`;
+
+    corpo += `\nOss!`;
+
+    // Codifica o assunto e o corpo para o formato de URL
+    const assuntoFormatado = encodeURIComponent(`Notas Exame de Faixa - ${nome}`);
+    const corpoFormatado = encodeURIComponent(corpo);
+
+    // Abre o aplicativo de email com Destinatário, Assunto e Corpo preenchidos
+    window.open(`mailto:luedo25@msn.com?subject=${assuntoFormatado}&body=${corpoFormatado}`, '_self');
+}
 </script>
 
 </body>
