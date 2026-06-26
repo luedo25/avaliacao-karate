@@ -247,10 +247,12 @@
 
         const assunto = encodeURIComponent("Notas Exame de Faixa - Atarashii Karatê-Do");
         const corpoFormatado = encodeURIComponent(corpoEmail);
-
-        // Abre o gerenciador de e-mail do sistema/celular
-        window.location.href = `mailto:?subject=${assunto}&body=${corpoFormatado}`;
+		
+		
+    // Abre o aplicativo de email com Destinatário, Assunto e Corpo preenchidos
+    window.open(`mailto:luedo25@msn.com?subject=${assunto}&body=${corpoFormatado}`, '_self');
     }
+	
 </script>
 
 </body>
