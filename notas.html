@@ -179,7 +179,6 @@
             return dados;
         }
 
-
         async function carregarNotas() {
             try {
                 const [respostaAlunos, respostaAvaliacoes] = await Promise.all([
@@ -187,7 +186,6 @@
                     chamarApi('/api/exame-avaliacao/relatorio')
                 ]);
 
-                // Esta rota retorna somente alunos ativos com Kihon, Kata e Kumite aprovados.
                 alunosAprovados = respostaAlunos.alunos || [];
                 avaliacoes = respostaAvaliacoes.avaliacoes || [];
                 semestreAtual = respostaAvaliacoes.semestre || respostaAlunos.semestre || '';
@@ -198,7 +196,6 @@
                     ? 'Notas atualizadas. A lista mostra somente os alunos aprovados para avaliação.'
                     : 'Não há alunos aprovados para avaliação neste semestre.';
             } catch (erro) {
-                // Em caso de falha, não deixa uma lista antiga visível.
                 alunosAprovados = [];
                 avaliacoes = [];
                 desenharTabela();
@@ -216,12 +213,41 @@
                 const registros = avaliacoes
                     .filter(item => item.usuario === aluno.usuario)
                     .sort((a, b) => String(a.avaliador || '').localeCompare(String(b.avaliador || ''), 'pt-BR'));
+                
+                // Variáveis para calcular as médias individuais das três modalidades
+                let somaKihon = 0, qtdKihon = 0;
+                let somaKata = 0, qtdKata = 0;
+                let somaKumite = 0, qtdKumite = 0;
+
+                registros.forEach(item => {
+                    const notas = item.dados?.notas || {};
+                    if (notas.kihon !== undefined && notas.kihon !== null && notas.kihon !== '') {
+                        somaKihon += Number(notas.kihon);
+                        qtdKihon++;
+                    }
+                    if (notas.kata !== undefined && notas.kata !== null && notas.kata !== '') {
+                        somaKata += Number(notas.kata);
+                        qtdKata++;
+                    }
+                    if (notas.kumite !== undefined && notas.kumite !== null && notas.kumite !== '') {
+                        somaKumite += Number(notas.kumite);
+                        qtdKumite++;
+                    }
+                });
+
                 const medias = registros
                     .map(obterMediaAvaliador)
                     .filter(media => media !== null);
                 const mediaConsolidada = medias.length
                     ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
                     : '—';
+                
+                // Calcula as strings a serem mostradas apenas se houver mais de um avaliador
+                const exibirMedias = medias.length > 1;
+                const mediaKihonStr = (exibirMedias && qtdKihon > 0) ? (somaKihon / qtdKihon).toFixed(2) : '';
+                const mediaKataStr = (exibirMedias && qtdKata > 0) ? (somaKata / qtdKata).toFixed(2) : '';
+                const mediaKumiteStr = (exibirMedias && qtdKumite > 0) ? (somaKumite / qtdKumite).toFixed(2) : '';
+
                 const linhasAvaliacoes = registros.length
                     ? registros.map(item => {
                         const notas = item.dados?.notas || {};
@@ -237,10 +263,17 @@
                         </tr>`;
                     }).join('')
                     : `<tr><td>${escaparHtml(aluno.nome)}</td><td colspan="7" class="pendente">Sem avaliações registradas</td></tr>`;
+                
+                // Estrutura atualizada da linha verde consolidada
                 const linhaConsolidada = `<tr class="linha-media">
-                    <td colspan="7">Média consolidada de ${medias.length} avaliador(es)</td>
+                    <td colspan="2">Média consolidada de ${medias.length} avaliador(es)</td>
+                    <td class="nota media-final">${mediaKihonStr}</td>
+                    <td class="nota media-final">${mediaKataStr}</td>
+                    <td class="nota media-final">${mediaKumiteStr}</td>
+                    <td colspan="2"></td>
                     <td class="nota media-final">${mediaConsolidada}</td>
                 </tr>`;
+                
                 return `<tr class="aluno-cabecalho"><td colspan="8">${escaparHtml(aluno.nome)}</td></tr>${linhasAvaliacoes}${linhaConsolidada}`;
             });
 
