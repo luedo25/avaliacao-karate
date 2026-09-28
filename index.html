@@ -572,7 +572,6 @@
         <div class="actions">
             <button type="button" class="btn btn-print" onclick="window.print();">💾 Salvar PDF / Imprimir</button>
             <button type="button" class="btn btn-submit" id="salvarAvaliacao" onclick="salvarAvaliacao();">☁️ Salvar avaliação no Supabase</button>
-            <button type="button" class="btn btn-submit" onclick="enviarRelatorio();">✉️ Enviar relatório consolidado</button>
         </div>
         <p id="mensagem" role="status" style="margin-top:15px;font-weight:600"></p>
 
@@ -580,79 +579,139 @@
 </div>
 
 <script>
-    // Configure API_URL para a URL publicada do servidor (ex.: https://seu-api.onrender.com).
-    const API_URL = (window.API_URL || localStorage.getItem('atarashii_api_url') || 'https://SEU-SERVIDOR.onrender.com').replace(/\/$/, '');
+    // URL pública da API Render usada pelas páginas do exame.
+    const API_URL = 'https://api-associacao-mp.onrender.com';
     const selectNome = document.getElementById('nome');
     const form = document.getElementById('formAvaliacao');
-    let authToken = sessionStorage.getItem('atarashii_exame_token') || '';
     let salvando = false;
-    const mostrar = (msg, erro=false) => { const el=document.getElementById('mensagem'); el.textContent=msg; el.style.color=erro?'#b91c1c':'#166534'; };
+    const mostrar = (msg, erro = false) => {
+        const el = document.getElementById('mensagem');
+        el.textContent = msg;
+        el.style.color = erro ? '#b91c1c' : '#166534';
+    };
+
     function calcularAutomatico() {
-        const soma=['nota-kihon','nota-kata','nota-kumite','nota-perguntas','nota-kata-acima'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);
-        document.getElementById('saldo-total').value=soma.toFixed(2);
-        document.getElementById('media-final').value=(soma/3).toFixed(2);
-    }
-    async function api(path, options={}) {
-        const response=await fetch(API_URL+path,{...options,headers:{'Content-Type':'application/json',...(authToken?{Authorization:`Bearer ${authToken}`}:{ }),...(options.headers||{})}});
-        const data=await response.json().catch(()=>({erro:'Resposta inválida do servidor.'}));
-        if(!response.ok) throw new Error(data.erro||`Erro HTTP ${response.status}`);
-        return data;
-    }
-    async function login() {
-        if(API_URL.includes('SEU-SERVIDOR')) { const url=prompt('Informe a URL base da API publicada (Render), sem / no final:'); if(!url)return; localStorage.setItem('atarashii_api_url',url.trim()); location.reload(); return; }
-        const usuario=prompt('Usuário do professor:'); if(!usuario)return;
-        const senha=prompt('Senha do professor:'); if(!senha)return;
-        try { const r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({usuario,senha})}); authToken=r.token; sessionStorage.setItem('atarashii_exame_token',authToken); await carregarAlunos(); }
-        catch(e){mostrar(e.message,true);}
-    }
-    async function carregarAlunos() {
-        try {
-            const data=await api('/api/exame-avaliacao/alunos');
-            try { const sessao=await api('/api/auth/me'); document.getElementById('avaliador').value=sessao.usuario.nome||sessao.usuario.usuario; } catch (_) {}
-            selectNome.innerHTML='<option value="">-- Selecione um aluno aprovado --</option>';
-            data.alunos.forEach(a=>{const o=document.createElement('option');o.value=a.usuario;o.textContent=a.nome;selectNome.append(o);});
-            if(!data.alunos.length) mostrar('Nenhum aluno com Kihon, Kata e Kumite aprovados no prontuário técnico.');
-        } catch(e) { if(!authToken){await login();return;} authToken='';sessionStorage.removeItem('atarashii_exame_token');mostrar(`Não foi possível carregar alunos: ${e.message}`,true); }
-    }
-    function coletarAvaliacao() {
-        calcularAutomatico();
-        const selecionado=selectNome.selectedOptions[0];
-        return {usuario:selectNome.value, faixaAtual:document.getElementById('faixa-atual').value, faixaPretendida:document.getElementById('faixa-pretendida').value,
-            data:document.getElementById('data').value, resultado:document.getElementById('resultado').value, conceito:document.getElementById('nota').value.trim(),
-            notas:{kihon:+document.getElementById('nota-kihon').value||0,kata:+document.getElementById('nota-kata').value||0,kumite:+document.getElementById('nota-kumite').value||0,perguntas:+document.getElementById('nota-perguntas').value||0,kataAcima:+document.getElementById('nota-kata-acima').value||0,saldo:+document.getElementById('saldo-total').value,media:+document.getElementById('media-final').value},
-            observacoes:{kihon:document.getElementById('obs_kihon').value.trim(),kata:document.getElementById('obs_kata').value.trim(),kumite:document.getElementById('obs_kumite').value.trim()},
-            pontosFortes:[...document.querySelectorAll('input[name$="_good"]:checked')].map(x=>`${x.name.split('_')[0]}: ${x.value}`),
-            melhorias:[...document.querySelectorAll('input[name$="_improve"]:checked')].map(x=>`${x.name.split('_')[0]}: ${x.value}`)};
-    }
-    async function salvarAvaliacao() {
-        if(salvando)return; const a=coletarAvaliacao(); if(!a.usuario){mostrar('Selecione um aluno.',true);return;}
-        if(!authToken){await login();return;}
-        salvando=true; const btn=document.getElementById('salvarAvaliacao');btn.disabled=true;
-        try {const r=await api('/api/exame-avaliacao',{method:'POST',body:JSON.stringify(a)});mostrar(r.mensagem||'Avaliação salva no Supabase.');}
-        catch(e){mostrar(e.message,true);} finally{salvando=false;btn.disabled=false;}
-    }
-    async function enviarRelatorio(){
-        if(!authToken){await login();return;}
-        if(!confirm('Preparar um único email com todas as avaliações deste semestre para o professor?'))return;
-        try {
-            const {semestre, avaliacoes}=await api('/api/exame-avaliacao/relatorio');
-            if(!avaliacoes.length){mostrar('Ainda não há avaliações salvas neste semestre.',true);return;}
-            const linhas=avaliacoes.map(a=>{
-                const d=a.dados||{}, n=d.notas||{}, o=d.observacoes||{};
-                return `ALUNO: ${a.aluno}\nAVALIADOR: ${a.avaliador}\nFaixa pretendida: ${d.faixaPretendida||'-'} | Resultado: ${d.resultado||'-'}\nNotas: Kihon ${n.kihon??'-'}; Kata ${n.kata??'-'}; Kumite ${n.kumite??'-'}; Perguntas ${n.perguntas??'-'}; Média ${n.media??'-'}\nConceito: ${d.conceito||'-'}\nPontos fortes: ${(d.pontosFortes||[]).join('; ')||'-'}\nOportunidades de melhoria: ${(d.melhorias||[]).join('; ')||'-'}\nObservações — Kihon: ${o.kihon||'-'} | Kata: ${o.kata||'-'} | Kumite: ${o.kumite||'-'}\n----------------------------------------`;
-            }).join('\n\n');
-            const corpo=`Relatório consolidado do Exame de Faixa — ${semestre}\nAssociação Atarashii Karatê-Do Shotokan\n\n${linhas}`;
-            window.location.href=`mailto:luedo25@msn.com?subject=${encodeURIComponent(`Notas do Exame de Faixa - ${semestre}`)}&body=${encodeURIComponent(corpo)}`;
-            mostrar('Rascunho aberto no aplicativo de email. Revise e envie para o professor.');
-        } catch(e){mostrar(e.message,true);}
+        const soma = ['nota-kihon', 'nota-kata', 'nota-kumite', 'nota-perguntas', 'nota-kata-acima']
+            .reduce((total, id) => total + (parseFloat(document.getElementById(id).value) || 0), 0);
+        document.getElementById('saldo-total').value = soma.toFixed(2);
+        document.getElementById('media-final').value = (soma / 3).toFixed(2);
     }
 
-    document.addEventListener('DOMContentLoaded',()=>{carregarAlunos();document.getElementById('avaliador').readOnly=true;document.getElementById('avaliador').placeholder='Nome obtido do usuário autenticado';});
-    selectNome.addEventListener('change',async()=>{if(!selectNome.value)return;try{const r=await api(`/api/exame-avaliacao/${encodeURIComponent(selectNome.value)}`);if(r.avaliacao) preencher(r.avaliacao.dados);else limparCampos();}catch(e){mostrar(e.message,true);}});
-    function preencher(d){if(!d)return; document.getElementById('faixa-atual').value=d.faixaAtual||document.getElementById('faixa-atual').value;document.getElementById('faixa-pretendida').value=d.faixaPretendida||document.getElementById('faixa-pretendida').value;document.getElementById('resultado').value=d.resultado||'APROVADO';document.getElementById('nota').value=d.conceito||'';document.getElementById('obs_kihon').value=d.observacoes?.kihon||'';document.getElementById('obs_kata').value=d.observacoes?.kata||'';document.getElementById('obs_kumite').value=d.observacoes?.kumite||'';for(const k of ['kihon','kata','kumite'])document.getElementById(`nota-${k}`).value=d.notas?.[k]??0;document.getElementById('nota-perguntas').value=d.notas?.perguntas??0;document.getElementById('nota-kata-acima').value=d.notas?.kataAcima??0;document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=[...(d.pontosFortes||[]),...(d.melhorias||[])].some(v=>v.endsWith(c.value)));calcularAutomatico();}
-    function limparCampos(){const aluno=selectNome.value;const avaliador=document.getElementById('avaliador').value;document.getElementById('formAvaliacao').reset();selectNome.value=aluno;document.getElementById('avaliador').value=avaliador;document.getElementById('data').value=hoje;document.getElementById('avaliador').readOnly=true;calcularAutomatico();}
-    const hoje=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo'}).format(new Date());
-    document.getElementById('data').value=hoje;
+    async function api(caminho, opcoes = {}) {
+        const resposta = await fetch(`${API_URL}${caminho}`, {
+            ...opcoes,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(opcoes.headers || {})
+            }
+        });
+        const dados = await resposta.json().catch(() => ({ erro: 'Resposta inválida do servidor.' }));
+        if (!resposta.ok) throw new Error(dados.erro || `Erro HTTP ${resposta.status}`);
+        return dados;
+    }
+
+    async function configurarApi() {
+        return true;
+    }
+
+    async function carregarAlunos() {
+        if (!await configurarApi()) return;
+        try {
+            const dados = await api('/api/exame-avaliacao/alunos');
+            selectNome.innerHTML = '<option value="">-- Selecione um aluno aprovado --</option>';
+            dados.alunos.forEach(aluno => {
+                const opcao = document.createElement('option');
+                opcao.value = aluno.usuario;
+                opcao.textContent = aluno.nome;
+                selectNome.appendChild(opcao);
+            });
+            mostrar(dados.alunos.length
+                ? `${dados.alunos.length} aluno(s) aprovado(s) carregado(s). Informe seu nome para avaliar.`
+                : 'Nenhum aluno com Kihon, Kata e Kumite aprovados no prontuário técnico.');
+        } catch (erro) {
+            mostrar(`Não foi possível conectar à API: ${erro.message}`, true);
+        }
+    }
+
+    function coletarAvaliacao() {
+        calcularAutomatico();
+        return {
+            usuario: selectNome.value,
+            avaliador: document.getElementById('avaliador').value.trim().replace(/\s+/g, ' '),
+            faixaAtual: document.getElementById('faixa-atual').value,
+            faixaPretendida: document.getElementById('faixa-pretendida').value,
+            data: document.getElementById('data').value,
+            resultado: document.getElementById('resultado').value,
+            conceito: document.getElementById('nota').value.trim(),
+            notas: {
+                kihon: Number(document.getElementById('nota-kihon').value) || 0,
+                kata: Number(document.getElementById('nota-kata').value) || 0,
+                kumite: Number(document.getElementById('nota-kumite').value) || 0,
+                perguntas: Number(document.getElementById('nota-perguntas').value) || 0,
+                kataAcima: Number(document.getElementById('nota-kata-acima').value) || 0,
+                saldo: Number(document.getElementById('saldo-total').value),
+                media: Number(document.getElementById('media-final').value)
+            },
+            observacoes: {
+                kihon: document.getElementById('obs_kihon').value.trim(),
+                kata: document.getElementById('obs_kata').value.trim(),
+                kumite: document.getElementById('obs_kumite').value.trim()
+            },
+            pontosFortes: [...document.querySelectorAll('input[name$="_good"]:checked')]
+                .map(item => `${item.name.split('_')[0]}: ${item.value}`),
+            melhorias: [...document.querySelectorAll('input[name$="_improve"]:checked')]
+                .map(item => `${item.name.split('_')[0]}: ${item.value}`)
+        };
+    }
+
+    async function salvarAvaliacao() {
+        if (salvando) return;
+        const avaliacao = coletarAvaliacao();
+        if (!avaliacao.avaliador || avaliacao.avaliador.length < 2) {
+            mostrar('Informe seu nome completo no campo Avaliador.', true);
+            document.getElementById('avaliador').focus();
+            return;
+        }
+        if (!avaliacao.usuario) {
+            mostrar('Selecione um aluno aprovado para avaliação.', true);
+            return;
+        }
+        if (!await configurarApi()) return;
+
+        salvando = true;
+        const botao = document.getElementById('salvarAvaliacao');
+        botao.disabled = true;
+        try {
+            const resposta = await api('/api/exame-avaliacao', {
+                method: 'POST',
+                body: JSON.stringify(avaliacao)
+            });
+            mostrar(resposta.mensagem || 'Avaliação salva no Supabase.');
+        } catch (erro) {
+            mostrar(`Não foi possível salvar a avaliação: ${erro.message}`, true);
+        } finally {
+            salvando = false;
+            botao.disabled = false;
+        }
+    }
+
+    function limparCampos() {
+        const alunoSelecionado = selectNome.value;
+        const avaliador = document.getElementById('avaliador').value;
+        form.reset();
+        selectNome.value = alunoSelecionado;
+        document.getElementById('avaliador').value = avaliador;
+        document.getElementById('avaliador').readOnly = false;
+        document.getElementById('data').value = hoje;
+        calcularAutomatico();
+    }
+
+    const hoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    document.getElementById('data').value = hoje;
+    document.getElementById('avaliador').readOnly = false;
+    document.getElementById('avaliador').placeholder = 'Digite seu nome completo';
+    selectNome.addEventListener('change', limparCampos);
+    document.addEventListener('DOMContentLoaded', carregarAlunos);
 </script>
 
 </body>
