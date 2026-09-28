@@ -143,7 +143,6 @@
     <script>
         const API_URL = 'https://api-associacao-mp.onrender.com';
 
-        let token = sessionStorage.getItem('atarashii_exame_token') || '';
         let alunosAprovados = [];
         let avaliacoes = [];
         let semestreAtual = '';
@@ -153,7 +152,6 @@
                 ...opcoes,
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                     ...(opcoes.headers || {})
                 }
             });
@@ -165,22 +163,6 @@
             return dados;
         }
 
-        async function autenticarProfessor() {
-            const usuario = prompt('Usuário do professor:');
-            if (!usuario) return false;
-
-            const senha = prompt('Senha do professor:');
-            if (!senha) return false;
-
-            const sessao = await chamarApi('/api/auth/login', {
-                method: 'POST',
-                body: JSON.stringify({ usuario, senha })
-            });
-
-            token = sessao.token;
-            sessionStorage.setItem('atarashii_exame_token', token);
-            return true;
-        }
 
         async function carregarNotas() {
             try {
@@ -200,19 +182,6 @@
                     ? 'Notas atualizadas. A lista mostra somente os alunos aprovados para avaliação.'
                     : 'Não há alunos aprovados para avaliação neste semestre.';
             } catch (erro) {
-                if (!token) {
-                    try {
-                        if (await autenticarProfessor()) {
-                            return carregarNotas();
-                        }
-                    } catch (erroLogin) {
-                        erro = erroLogin;
-                    }
-                } else {
-                    token = '';
-                    sessionStorage.removeItem('atarashii_exame_token');
-                }
-
                 // Em caso de falha, não deixa uma lista antiga visível.
                 alunosAprovados = [];
                 avaliacoes = [];
@@ -270,8 +239,6 @@
 
         async function prepararEmail() {
             try {
-                if (!token && !await autenticarProfessor()) return;
-
                 if (!avaliacoes.length) {
                     document.getElementById('mensagem').textContent = 'Ainda não há avaliações salvas neste semestre.';
                     return;
