@@ -218,6 +218,7 @@
         .btn:active {
             transform: scale(0.97);
         }
+        .btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 
         .btn-submit {
             background-color: var(--primary-color);
@@ -232,6 +233,24 @@
             background-color: #7f8c8d;
             color: white;
         }
+
+        dialog.modal-confirmacao {
+            width: min(560px, calc(100% - 36px));
+            max-height: min(80vh, 700px);
+            padding: 24px;
+            border: 0;
+            border-radius: 12px;
+            color: #2f3640;
+            box-shadow: 0 18px 55px rgba(0,0,0,.28);
+        }
+        dialog.modal-confirmacao::backdrop { background: rgba(15, 23, 42, .58); }
+        dialog.modal-confirmacao h2 { text-align: left; margin: 0 0 12px; font-size: 1.25rem; }
+        .lista-confirmacao { max-height: 32vh; overflow: auto; padding-left: 24px; }
+        .lista-confirmacao li { margin: 7px 0; }
+        .aviso-modal { color: #9a3412; background: #fff7ed; border-radius: 6px; padding: 10px 12px; }
+        .modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+        .btn-secundario { background: #64748b; color: white; }
+        .btn-perigo { background: #b91c1c; color: white; }
 
         .destaque-resultado {
             font-weight: bold;
@@ -584,13 +603,35 @@
         </div>
 
         <div class="actions">
-            <button type="button" class="btn btn-print" id="imprimirPDF">💾 Salvar PDF / Imprimir</button>
-            <button type="button" class="btn btn-submit" id="salvarAvaliacao">☁️ Salvar avaliação no Supabase</button>
+            <button type="button" class="btn btn-print" id="resetarAvaliacao">↺ Reset</button>
+            <button type="button" class="btn btn-submit" id="salvarAvaliacao">☁️ Enviar Avaliação</button>
         </div>
         <p id="mensagem" role="status" aria-live="polite" aria-atomic="true" style="margin-top:15px;font-weight:600;min-height:1.5em"></p>
 
     </form>
 </div>
+
+<dialog class="modal-confirmacao" id="modalReset" aria-labelledby="tituloModalReset">
+    <h2 id="tituloModalReset">Confirmar reset da avaliação</h2>
+    <p id="textoModalReset"></p>
+    <p class="aviso-modal">Esta ação limpa a ficha e o rascunho deste aluno neste aparelho. Avaliações que já foram enviadas ao Supabase permanecem lá.</p>
+    <div class="modal-actions">
+        <button type="button" class="btn btn-secundario" id="cancelarReset">Cancelar</button>
+        <button type="button" class="btn btn-perigo" id="confirmarReset">Confirmar reset</button>
+    </div>
+</dialog>
+
+<dialog class="modal-confirmacao" id="modalEnvio" aria-labelledby="tituloModalEnvio">
+    <h2 id="tituloModalEnvio">Revisar avaliações antes do envio</h2>
+    <p id="resumoModalEnvio"></p>
+    <strong>Alunos com avaliação completa:</strong>
+    <ul class="lista-confirmacao" id="listaAlunosEnvio"></ul>
+    <div id="avisoIncompletos"></div>
+    <div class="modal-actions">
+        <button type="button" class="btn btn-secundario" id="cancelarEnvio">Voltar</button>
+        <button type="button" class="btn btn-submit" id="confirmarEnvio">Confirmar envio</button>
+    </div>
+</dialog>
 
 <script>
     // URL pública da API Render usada pelas páginas do exame.
@@ -605,6 +646,7 @@
     let avaliadorDaFicha = '';
     let rascunhoAlterado = false;
     let timerAutoSave = null;
+    let loteConfirmacao = null;
     let estadoLocal = lerEstadoLocal();
     const mostrar = (msg, erro = false) => {
         const el = document.getElementById('mensagem');
@@ -943,26 +985,43 @@
             return valor === null || valor === undefined || valor === '' || !Number.isFinite(Number(valor))
                 || Number(valor) < 0 || Number(valor) > 10;
         }));
-        if (incompletas.length) {
-            const nomes = incompletas.map(item => item.dados?.usuario || item.usuario).filter(Boolean);
-            mostrar(`Preencha as notas de Kihon, Kata e Kumite (de 0 a 10) para todos os alunos alterados antes de enviar${nomes.length ? `: ${nomes.join(', ')}` : ''}.`, true);
-            const primeiroCampoVazio = incompletas[0].dados?.notas;
-            const campoFoco = notasObrigatorias.find(([campo]) => {
-                const valor = primeiroCampoVazio?.[campo];
-                return valor === null || valor === undefined || valor === '' || !Number.isFinite(Number(valor))
-                    || Number(valor) < 0 || Number(valor) > 10;
-            });
-            if (campoFoco && selectNome.value === incompletas[0].usuario) {
-                document.getElementById(`nota-${campoFoco[0]}`).focus();
-            }
-            return;
+        const validas = pendentes.filter(item => !incompletas.includes(item));
+        loteConfirmacao = { avaliador, pendentes, incompletas };
+        const lista = document.getElementById('listaAlunosEnvio');
+        lista.replaceChildren();
+        for (const item of validas) {
+            const linha = document.createElement('li');
+            const opcao = [...selectNome.options].find(option => option.value === item.usuario);
+            linha.textContent = opcao?.textContent || item.dados?.usuario || item.usuario;
+            lista.appendChild(linha);
         }
+        document.getElementById('resumoModalEnvio').textContent =
+            `${validas.length} avaliação(ões) completa(s) de ${pendentes.length} ficha(s) alterada(s). Confirme para enviar este lote ao Supabase.`;
+        const aviso = document.getElementById('avisoIncompletos');
+        aviso.replaceChildren();
+        if (incompletas.length) {
+            const nomes = incompletas.map(item => {
+                const opcao = [...selectNome.options].find(option => option.value === item.usuario);
+                return opcao?.textContent || item.dados?.usuario || item.usuario;
+            });
+            const texto = document.createElement('p');
+            texto.className = 'aviso-modal';
+            texto.textContent = `O envio está bloqueado. Preencha Kihon, Kata e Kumite (0 a 10) para: ${nomes.join(', ')}.`;
+            aviso.appendChild(texto);
+        }
+        document.getElementById('confirmarEnvio').disabled = incompletas.length > 0 || validas.length === 0;
+        document.getElementById('modalEnvio').showModal();
+    }
 
+    async function executarEnvioConfirmado() {
+        if (salvando || !loteConfirmacao || loteConfirmacao.incompletas.length) return;
+        const { avaliador, pendentes } = loteConfirmacao;
         salvando = true;
-        const botao = document.getElementById('salvarAvaliacao');
-        const textoOriginal = botao.textContent;
+        const modal = document.getElementById('modalEnvio');
+        const botao = document.getElementById('confirmarEnvio');
         botao.disabled = true;
         botao.textContent = `⏳ Enviando ${pendentes.length} aluno(s)...`;
+        document.getElementById('cancelarEnvio').disabled = true;
         mostrar(`Enviando as avaliações de ${pendentes.length} aluno(s) ao Supabase. Aguarde...`);
         try {
             const resposta = await api('/api/exame-avaliacao/lote', {
@@ -999,9 +1058,37 @@
             mostrar(`❌ Não foi possível enviar as avaliações: ${erro.message || 'erro inesperado.'} Os rascunhos continuam salvos neste aparelho.`, true);
         } finally {
             salvando = false;
+            loteConfirmacao = null;
+            modal.close();
             botao.disabled = false;
-            botao.textContent = textoOriginal;
+            botao.textContent = 'Confirmar envio';
+            document.getElementById('cancelarEnvio').disabled = false;
         }
+    }
+
+    function abrirConfirmacaoReset() {
+        const usuario = selectNome.value;
+        if (!usuario) {
+            mostrar('Selecione um aluno antes de resetar a ficha.', true);
+            selectNome.focus();
+            return;
+        }
+        salvarRascunhoPendente();
+        const nomeAluno = selectNome.options[selectNome.selectedIndex]?.textContent || usuario;
+        document.getElementById('textoModalReset').textContent = `Deseja apagar a avaliação preenchida para ${nomeAluno}?`;
+        document.getElementById('modalReset').showModal();
+    }
+
+    function executarResetConfirmado() {
+        const usuario = selectNome.value;
+        if (!usuario) return;
+        clearTimeout(timerAutoSave);
+        delete estadoLocal.rascunhos[chaveRascunho(limparNomeAvaliador(), usuario)];
+        estadoLocal.ultimoAluno = usuario;
+        gravarEstadoLocal();
+        restaurarRascunho(usuario);
+        document.getElementById('modalReset').close();
+        mostrar('A ficha e o rascunho deste aluno foram limpos neste aparelho.');
     }
 
     document.getElementById('data').value = DATA_AVALIACAO;
@@ -1015,7 +1102,14 @@
         if (document.visibilityState === 'hidden') salvarRascunhoPendente();
     });
     document.getElementById('salvarAvaliacao').addEventListener('click', salvarAvaliacao);
-    document.getElementById('imprimirPDF').addEventListener('click', () => window.print());
+    document.getElementById('resetarAvaliacao').addEventListener('click', abrirConfirmacaoReset);
+    document.getElementById('confirmarReset').addEventListener('click', executarResetConfirmado);
+    document.getElementById('cancelarReset').addEventListener('click', () => document.getElementById('modalReset').close());
+    document.getElementById('confirmarEnvio').addEventListener('click', executarEnvioConfirmado);
+    document.getElementById('cancelarEnvio').addEventListener('click', () => {
+        loteConfirmacao = null;
+        document.getElementById('modalEnvio').close();
+    });
     document.addEventListener('DOMContentLoaded', carregarAlunos);
 </script>
 
