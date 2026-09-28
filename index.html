@@ -573,7 +573,7 @@
             <button type="button" class="btn btn-print" onclick="window.print();">💾 Salvar PDF / Imprimir</button>
             <button type="button" class="btn btn-submit" id="salvarAvaliacao" onclick="salvarAvaliacao();">☁️ Salvar avaliação no Supabase</button>
         </div>
-        <p id="mensagem" role="status" style="margin-top:15px;font-weight:600"></p>
+        <p id="mensagem" role="status" aria-live="polite" aria-atomic="true" style="margin-top:15px;font-weight:600;min-height:1.5em"></p>
 
     </form>
 </div>
@@ -598,13 +598,26 @@
     }
 
     async function api(caminho, opcoes = {}) {
-        const resposta = await fetch(`${API_URL}${caminho}`, {
-            ...opcoes,
-            headers: {
-                'Content-Type': 'application/json',
-                ...(opcoes.headers || {})
+        const controlador = new AbortController();
+        const timeout = setTimeout(() => controlador.abort(), 120000);
+        let resposta;
+        try {
+            resposta = await fetch(`${API_URL}${caminho}`, {
+                ...opcoes,
+                signal: controlador.signal,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(opcoes.headers || {})
+                }
+            });
+        } catch (erro) {
+            if (erro.name === 'AbortError') {
+                throw new Error('O servidor demorou mais de 2 minutos para responder. Tente novamente e confira o serviço no Render.');
             }
-        });
+            throw new Error('Não foi possível alcançar o servidor Render. Verifique a conexão, o CORS e se a API está ativa.');
+        } finally {
+            clearTimeout(timeout);
+        }
         const dados = await resposta.json().catch(() => ({ erro: 'Resposta inválida do servidor.' }));
         if (!resposta.ok) throw new Error(dados.erro || `Erro HTTP ${resposta.status}`);
         return dados;
@@ -666,32 +679,45 @@
 
     async function salvarAvaliacao() {
         if (salvando) return;
-        const avaliacao = coletarAvaliacao();
-        if (!avaliacao.avaliador || avaliacao.avaliador.length < 2) {
-            mostrar('Informe seu nome completo no campo Avaliador.', true);
-            document.getElementById('avaliador').focus();
-            return;
-        }
-        if (!avaliacao.usuario) {
-            mostrar('Selecione um aluno aprovado para avaliação.', true);
-            return;
-        }
-        if (!await configurarApi()) return;
-
         salvando = true;
         const botao = document.getElementById('salvarAvaliacao');
+        const textoOriginal = botao.textContent;
         botao.disabled = true;
+        botao.textContent = '⏳ Salvando avaliação...';
+        mostrar('Enviando notas e observações ao Supabase. Aguarde a confirmação...');
         try {
+            const avaliacao = coletarAvaliacao();
+            if (!avaliacao.avaliador || avaliacao.avaliador.length < 2) {
+                mostrar('Informe o nome do avaliador para continuar.', true);
+                document.getElementById('avaliador').focus();
+                return;
+            }
+            if (!avaliacao.usuario) {
+                mostrar('Selecione um aluno aprovado para avaliação.', true);
+                selectNome.focus();
+                return;
+            }
+            if (!await configurarApi()) {
+                mostrar('Não foi possível iniciar a conexão com o servidor.', true);
+                return;
+            }
+
             const resposta = await api('/api/exame-avaliacao', {
                 method: 'POST',
                 body: JSON.stringify(avaliacao)
             });
-            mostrar(resposta.mensagem || 'Avaliação salva no Supabase.');
+            if (!resposta.sucesso) throw new Error(resposta.erro || 'O servidor não confirmou a gravação.');
+            const horario = new Intl.DateTimeFormat('pt-BR', {
+                timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
+            }).format(new Date());
+            mostrar(`✅ Avaliação salva no Supabase com sucesso às ${horario}.`);
         } catch (erro) {
-            mostrar(`Não foi possível salvar a avaliação: ${erro.message}`, true);
+            console.error('Falha ao salvar avaliação do exame:', erro);
+            mostrar(`❌ Não foi possível salvar a avaliação: ${erro.message || 'erro inesperado.'}`, true);
         } finally {
             salvando = false;
             botao.disabled = false;
+            botao.textContent = textoOriginal;
         }
     }
 
