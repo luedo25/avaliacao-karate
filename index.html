@@ -570,8 +570,8 @@
         </div>
 
         <div class="actions">
-            <button type="button" class="btn btn-print" onclick="window.print();">💾 Salvar PDF / Imprimir</button>
-            <button type="button" class="btn btn-submit" id="salvarAvaliacao" onclick="salvarAvaliacao();">☁️ Salvar avaliação no Supabase</button>
+            <button type="button" class="btn btn-print" id="imprimirPDF">💾 Salvar PDF / Imprimir</button>
+            <button type="button" class="btn btn-submit" id="salvarAvaliacao">☁️ Salvar avaliação no Supabase</button>
         </div>
         <p id="mensagem" role="status" aria-live="polite" aria-atomic="true" style="margin-top:15px;font-weight:600;min-height:1.5em"></p>
 
@@ -737,6 +737,8 @@
     document.getElementById('avaliador').readOnly = false;
     document.getElementById('avaliador').placeholder = 'Digite seu nome completo';
     selectNome.addEventListener('change', limparCampos);
+    document.getElementById('salvarAvaliacao').addEventListener('click', salvarAvaliacao);
+    document.getElementById('imprimirPDF').addEventListener('click', () => window.print());
     document.addEventListener('DOMContentLoaded', carregarAlunos);
 </script>
 
