@@ -73,7 +73,7 @@
 
         table {
             width: 100%;
-            min-width: 650px;
+            min-width: 940px;
             border-collapse: collapse;
         }
 
@@ -99,6 +99,22 @@
 
         .pendente {
             color: #777;
+        }
+
+        .aluno-cabecalho td {
+            color: #fff;
+            background: #44596e;
+            font-weight: 700;
+        }
+
+        .linha-media td {
+            background: #edf6ef;
+            font-weight: 700;
+        }
+
+        .nota {
+            text-align: center;
+            white-space: nowrap;
         }
 
         @media print {
@@ -191,35 +207,41 @@
         }
 
         function desenharTabela() {
-            const avaliadores = [...new Set(avaliacoes.map(item => item.avaliador))]
-                .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-
-            const titulos = ['<th>Nome do aluno</th>']
-                .concat(avaliadores.map(nome => `<th>${escaparHtml(nome)}</th>`))
-                .concat(['<th>Média final</th>', '<th>Avaliações</th>']);
-            document.getElementById('cabecalho').innerHTML = `<tr>${titulos.join('')}</tr>`;
+            document.getElementById('cabecalho').innerHTML = `<tr>
+                <th>Aluno</th><th>Avaliador</th><th>Kihon</th><th>Kata</th><th>Kumite</th>
+                <th>Perguntas</th><th>Kata acima da faixa</th><th>Média do avaliador</th>
+            </tr>`;
 
             const linhas = alunosAprovados.map(aluno => {
-                const notasAluno = avaliacoes.filter(item => item.usuario === aluno.usuario);
-                const medias = notasAluno
-                    .map(item => Number(item.dados?.notas?.media))
-                    .filter(Number.isFinite);
-                const mediaFinal = medias.length
+                const registros = avaliacoes
+                    .filter(item => item.usuario === aluno.usuario)
+                    .sort((a, b) => String(a.avaliador || '').localeCompare(String(b.avaliador || ''), 'pt-BR'));
+                const medias = registros
+                    .map(obterMediaAvaliador)
+                    .filter(media => media !== null);
+                const mediaConsolidada = medias.length
                     ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
                     : '—';
-
-                const colunasAvaliadores = avaliadores.map(nome => {
-                    const avaliacao = notasAluno.find(item => item.avaliador === nome);
-                    const media = avaliacao?.dados?.notas?.media;
-                    return `<td>${media === undefined || media === null ? '—' : Number(media).toFixed(2)}</td>`;
-                });
-
-                return `<tr>
-                    <td>${escaparHtml(aluno.nome)}</td>
-                    ${colunasAvaliadores.join('')}
-                    <td class="media-final">${mediaFinal}</td>
-                    <td class="${medias.length ? '' : 'pendente'}">${medias.length}</td>
+                const linhasAvaliacoes = registros.length
+                    ? registros.map(item => {
+                        const notas = item.dados?.notas || {};
+                        return `<tr>
+                            <td>${escaparHtml(aluno.nome)}</td>
+                            <td>${escaparHtml(item.avaliador)}</td>
+                            <td class="nota">${formatarNota(notas.kihon)}</td>
+                            <td class="nota">${formatarNota(notas.kata)}</td>
+                            <td class="nota">${formatarNota(notas.kumite)}</td>
+                            <td class="nota">${formatarNota(notas.perguntas)}</td>
+                            <td class="nota">${formatarNota(notas.kataAcima)}</td>
+                            <td class="nota media-final">${formatarNota(notas.media)}</td>
+                        </tr>`;
+                    }).join('')
+                    : `<tr><td>${escaparHtml(aluno.nome)}</td><td colspan="7" class="pendente">Sem avaliações registradas</td></tr>`;
+                const linhaConsolidada = `<tr class="linha-media">
+                    <td colspan="7">Média consolidada de ${medias.length} avaliador(es)</td>
+                    <td class="nota media-final">${mediaConsolidada}</td>
                 </tr>`;
+                return `<tr class="aluno-cabecalho"><td colspan="8">${escaparHtml(aluno.nome)}</td></tr>${linhasAvaliacoes}${linhaConsolidada}`;
             });
 
             document.getElementById('corpo').innerHTML = linhas.length
@@ -237,6 +259,17 @@
             }[caractere]));
         }
 
+        function formatarNota(valor) {
+            if (valor === undefined || valor === null || valor === '') return '—';
+            const numero = Number(valor);
+            return Number.isFinite(numero) ? numero.toFixed(2) : '—';
+        }
+
+        function obterMediaAvaliador(avaliacao) {
+            const media = avaliacao?.dados?.notas?.media;
+            return typeof media === 'number' && Number.isFinite(media) ? media : null;
+        }
+
         async function prepararEmail() {
             try {
                 if (!avaliacoes.length) {
@@ -252,8 +285,8 @@
                 const blocosAlunos = alunosAprovados.map(aluno => {
                     const registros = avaliacoes.filter(item => item.usuario === aluno.usuario);
                     const medias = registros
-                        .map(item => Number(item.dados?.notas?.media))
-                        .filter(Number.isFinite);
+                        .map(obterMediaAvaliador)
+                        .filter(media => media !== null);
                     const media = medias.length
                         ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
                         : 'Sem notas';
@@ -265,7 +298,7 @@
 
                         return [
                             `Avaliador: ${item.avaliador}`,
-                            `Notas: Kihon ${notas.kihon ?? '-'}; Kata ${notas.kata ?? '-'}; Kumite ${notas.kumite ?? '-'}; Perguntas ${notas.perguntas ?? '-'}; Média ${notas.media ?? '-'}`,
+                            `Notas: Kihon ${notas.kihon ?? '-'}; Kata ${notas.kata ?? '-'}; Kumite ${notas.kumite ?? '-'}; Perguntas ${notas.perguntas ?? '-'}; Kata acima da faixa ${notas.kataAcima ?? '-'}; Média do avaliador ${notas.media ?? '-'}`,
                             `Resultado: ${dados.resultado || '-'} | Faixa pretendida: ${dados.faixaPretendida || '-'} | Conceito: ${dados.conceito || '-'}`,
                             `Pontos fortes: ${(dados.pontosFortes || []).join('; ') || '-'}`,
                             `Melhorias: ${(dados.melhorias || []).join('; ') || '-'}`,
