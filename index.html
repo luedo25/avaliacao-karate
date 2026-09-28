@@ -356,7 +356,7 @@
         <div class="grid-dados">
             <div class="form-group">
                 <label for="data">Data da Avaliação:</label>
-                <input type="text" id="data" value="28/06/2026" readonly>
+                <input type="text" id="data" value="06/12/2026" readonly>
             </div>
         </div>
 
@@ -530,15 +530,15 @@
         <div class="grid-dados">
            <div class="form-group">
                 <label for="nota-kihon">Nota Kihon (0 a 10):</label>
-                <input type="number" id="nota-kihon" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
+                <input type="number" id="nota-kihon" min="0" max="10" step="0.1" required oninput="calcularAutomatico()">
             </div>
             <div class="form-group">
                 <label for="nota-kata">Nota Kata (0 a 10):</label>
-                <input type="number" id="nota-kata" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
+                <input type="number" id="nota-kata" min="0" max="10" step="0.1" required oninput="calcularAutomatico()">
             </div>
             <div class="form-group">
                 <label for="nota-kumite">Nota Kumite (0 a 10):</label>
-               <input type="number" id="nota-kumite" min="0" max="10" step="0.1" value="0" oninput="calcularAutomatico()">
+               <input type="number" id="nota-kumite" min="0" max="10" step="0.1" required oninput="calcularAutomatico()">
             </div>
             <div class="form-group">
                 <label for="nota-perguntas">Nota Perguntas (Peso 0.2 cada):</label>
@@ -596,6 +596,7 @@
     // URL pública da API Render usada pelas páginas do exame.
     const API_URL = 'https://api-associacao-mp.onrender.com';
     const CHAVE_RASCUNHOS = 'atarashii:exame-avaliacao:rascunhos:v1';
+    const DATA_AVALIACAO = '06/12/2026';
     const selectNome = document.getElementById('nome');
     const form = document.getElementById('formAvaliacao');
     const campoAvaliador = document.getElementById('avaliador');
@@ -771,9 +772,9 @@
             resultado: document.getElementById('resultado').value,
             conceito: document.getElementById('nota').value.trim(),
             notas: {
-                kihon: Number(document.getElementById('nota-kihon').value) || 0,
-                kata: Number(document.getElementById('nota-kata').value) || 0,
-                kumite: Number(document.getElementById('nota-kumite').value) || 0,
+                kihon: document.getElementById('nota-kihon').value === '' ? null : Number(document.getElementById('nota-kihon').value),
+                kata: document.getElementById('nota-kata').value === '' ? null : Number(document.getElementById('nota-kata').value),
+                kumite: document.getElementById('nota-kumite').value === '' ? null : Number(document.getElementById('nota-kumite').value),
                 perguntas: Number(document.getElementById('nota-perguntas').value) || 0,
                 kataAcima: Number(document.getElementById('nota-kata-acima').value) || 0,
                 saldo: Number(document.getElementById('saldo-total').value),
@@ -815,7 +816,7 @@
         selectNome.value = usuario;
         campoAvaliador.value = nomeAtual || estadoLocal.avaliador || '';
         avaliadorDaFicha = campoAvaliador.value.trim().replace(/\s+/g, ' ');
-        document.getElementById('data').value = hoje;
+        document.getElementById('data').value = DATA_AVALIACAO;
 
         if (salvo?.dados) {
             const dados = salvo.dados;
@@ -844,6 +845,7 @@
                 campo.checked = marcados.has(`${categoria}: ${campo.value}`);
             });
         }
+        document.getElementById('data').value = DATA_AVALIACAO;
         calcularAutomatico();
         rascunhoAlterado = false;
         atualizarStatusRascunho();
@@ -929,7 +931,30 @@
         adotarRascunhosSemAvaliador(avaliador);
         const pendentes = listarRascunhosAvaliador(avaliador);
         if (!pendentes.length) {
-            mostrar('Não há avaliações preenchidas para enviar. Selecione um aluno e preencha a ficha.', true);
+            mostrar('Nenhuma avaliação foi alterada; nada foi enviado.');
+            return;
+        }
+
+        const notasObrigatorias = [
+            ['kihon', 'Kihon'], ['kata', 'Kata'], ['kumite', 'Kumite']
+        ];
+        const incompletas = pendentes.filter(item => notasObrigatorias.some(([campo]) => {
+            const valor = item.dados?.notas?.[campo];
+            return valor === null || valor === undefined || valor === '' || !Number.isFinite(Number(valor))
+                || Number(valor) < 0 || Number(valor) > 10;
+        }));
+        if (incompletas.length) {
+            const nomes = incompletas.map(item => item.dados?.usuario || item.usuario).filter(Boolean);
+            mostrar(`Preencha as notas de Kihon, Kata e Kumite (de 0 a 10) para todos os alunos alterados antes de enviar${nomes.length ? `: ${nomes.join(', ')}` : ''}.`, true);
+            const primeiroCampoVazio = incompletas[0].dados?.notas;
+            const campoFoco = notasObrigatorias.find(([campo]) => {
+                const valor = primeiroCampoVazio?.[campo];
+                return valor === null || valor === undefined || valor === '' || !Number.isFinite(Number(valor))
+                    || Number(valor) < 0 || Number(valor) > 10;
+            });
+            if (campoFoco && selectNome.value === incompletas[0].usuario) {
+                document.getElementById(`nota-${campoFoco[0]}`).focus();
+            }
             return;
         }
 
@@ -942,7 +967,15 @@
         try {
             const resposta = await api('/api/exame-avaliacao/lote', {
                 method: 'POST',
-                body: JSON.stringify({ avaliador, avaliacoes: pendentes.map(item => item.dados) })
+                body: JSON.stringify({ avaliador, avaliacoes: pendentes.map(item => ({
+                    ...item.dados,
+                    notas: {
+                        ...item.dados.notas,
+                        kihon: Number(item.dados.notas.kihon),
+                        kata: Number(item.dados.notas.kata),
+                        kumite: Number(item.dados.notas.kumite)
+                    }
+                })) })
             });
             if (!resposta.sucesso) throw new Error(resposta.erro || 'O servidor não confirmou a gravação do lote.');
 
@@ -971,8 +1004,7 @@
         }
     }
 
-    const hoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date());
-    document.getElementById('data').value = hoje;
+    document.getElementById('data').value = DATA_AVALIACAO;
     campoAvaliador.value = estadoLocal.avaliador;
     campoAvaliador.placeholder = 'Digite seu nome completo';
     selectNome.addEventListener('change', trocarAluno);
