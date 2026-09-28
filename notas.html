@@ -141,11 +141,7 @@
     </main>
 
     <script>
-        const API_URL = (
-            window.API_URL
-            || localStorage.getItem('atarashii_api_url')
-            || 'https://SEU-SERVIDOR.onrender.com'
-        ).replace(/\/$/, '');
+        const API_URL = 'https://api-associacao-mp.onrender.com';
 
         let token = sessionStorage.getItem('atarashii_exame_token') || '';
         let alunosAprovados = [];
@@ -170,15 +166,6 @@
         }
 
         async function autenticarProfessor() {
-            if (API_URL.includes('SEU-SERVIDOR')) {
-                const endereco = prompt('Informe a URL base da API publicada, sem a barra final:');
-                if (!endereco) return false;
-
-                localStorage.setItem('atarashii_api_url', endereco.trim());
-                location.reload();
-                return false;
-            }
-
             const usuario = prompt('Usuário do professor:');
             if (!usuario) return false;
 
