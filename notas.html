@@ -214,7 +214,6 @@
                     .filter(item => item.usuario === aluno.usuario)
                     .sort((a, b) => String(a.avaliador || '').localeCompare(String(b.avaliador || ''), 'pt-BR'));
                 
-                // Variáveis para calcular as médias individuais das três modalidades
                 let somaKihon = 0, qtdKihon = 0;
                 let somaKata = 0, qtdKata = 0;
                 let somaKumite = 0, qtdKumite = 0;
@@ -242,7 +241,6 @@
                     ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
                     : '—';
                 
-                // Calcula as strings a serem mostradas apenas se houver mais de um avaliador
                 const exibirMedias = medias.length > 1;
                 const mediaKihonStr = (exibirMedias && qtdKihon > 0) ? (somaKihon / qtdKihon).toFixed(2) : '';
                 const mediaKataStr = (exibirMedias && qtdKata > 0) ? (somaKata / qtdKata).toFixed(2) : '';
@@ -264,7 +262,6 @@
                     }).join('')
                     : `<tr><td>${escaparHtml(aluno.nome)}</td><td colspan="7" class="pendente">Sem avaliações registradas</td></tr>`;
                 
-                // Estrutura atualizada da linha verde consolidada
                 const linhaConsolidada = `<tr class="linha-media">
                     <td colspan="2">Média consolidada de ${medias.length} avaliador(es)</td>
                     <td class="nota media-final">${mediaKihonStr}</td>
@@ -317,12 +314,45 @@
 
                 const blocosAlunos = alunosAprovados.map(aluno => {
                     const registros = avaliacoes.filter(item => item.usuario === aluno.usuario);
+                    
+                    let somaKihon = 0, qtdKihon = 0;
+                    let somaKata = 0, qtdKata = 0;
+                    let somaKumite = 0, qtdKumite = 0;
+
+                    registros.forEach(item => {
+                        const notas = item.dados?.notas || {};
+                        if (notas.kihon !== undefined && notas.kihon !== null && notas.kihon !== '') {
+                            somaKihon += Number(notas.kihon);
+                            qtdKihon++;
+                        }
+                        if (notas.kata !== undefined && notas.kata !== null && notas.kata !== '') {
+                            somaKata += Number(notas.kata);
+                            qtdKata++;
+                        }
+                        if (notas.kumite !== undefined && notas.kumite !== null && notas.kumite !== '') {
+                            somaKumite += Number(notas.kumite);
+                            qtdKumite++;
+                        }
+                    });
+
                     const medias = registros
                         .map(obterMediaAvaliador)
                         .filter(media => media !== null);
-                    const media = medias.length
+                    
+                    const mediaGeral = medias.length
                         ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
                         : 'Sem notas';
+
+                    // Constrói o cabeçalho do aluno no e-mail
+                    let cabecalhoAluno = `${aluno.nome} — média final: ${mediaGeral} (${medias.length} avaliação(ões))`;
+                    
+                    // Adiciona as médias consolidadas específicas se houver mais de 1 avaliador
+                    if (medias.length > 1) {
+                        const mediaK = qtdKihon > 0 ? (somaKihon / qtdKihon).toFixed(2) : '-';
+                        const mediaKa = qtdKata > 0 ? (somaKata / qtdKata).toFixed(2) : '-';
+                        const mediaKu = qtdKumite > 0 ? (somaKumite / qtdKumite).toFixed(2) : '-';
+                        cabecalhoAluno += `\r\nMédias Consolidadas: Kihon ${mediaK} | Kata ${mediaKa} | Kumite ${mediaKu}`;
+                    }
 
                     const detalhes = registros.map(item => {
                         const dados = item.dados || {};
@@ -339,7 +369,7 @@
                         ].join('\r\n');
                     }).join('\r\n\r\n');
 
-                    return `${aluno.nome} — média dos avaliadores: ${media} (${medias.length} avaliação(ões))\r\n${detalhes || 'Sem avaliação registrada.'}`;
+                    return `${cabecalhoAluno}\r\n\r\n${detalhes || 'Sem avaliação registrada.'}`;
                 });
 
                 const corpoEmail = [
@@ -363,3 +393,7 @@
     </script>
 </body>
 </html>
+```<ElicitationsGroup>
+</ElicitationsGroup>
+<FollowUp>
+</FollowUp>
