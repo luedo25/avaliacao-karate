@@ -332,12 +332,12 @@
 
         <div class="grid-dados">
             <div class="form-group span-2-desktop">
-                <label for="nome">Selecione ou Adicione o Aluno:</label>
+                <label for="nome">Aluno aprovado para avaliação:</label>
                 <div style="display: flex; gap: 10px;">
                     <select id="nome" required style="flex-grow: 1;">
                         <option value="">-- Escolha um karateca ou clique em Novo --</option>
                     </select>
-                    <button type="button" class="btn btn-submit" style="width: auto; padding: 0 15px;" onclick="adicionarNovoAluno()">➕ Novo</button>
+                    
                 </div>
             </div>
             <div class="form-group">
@@ -570,335 +570,89 @@
         </div>
 
         <div class="actions">
-            <button type="button" class="btn btn-danger" onclick="removerAlunoAtual();" style="margin-right: auto;">
-                🗑️ Excluir Aluno Selecionado
-            </button>
-            <button type="button" class="btn btn-print" onclick="window.print();">
-                💾 Salvar PDF / Imprimir
-            </button>
-            <button type="button" class="btn btn-submit" onclick="enviarEmailSensei();">
-                ✉️ Enviar para o Sensei (luedo25@msn.com)
-            </button>
+            <button type="button" class="btn btn-print" onclick="window.print();">💾 Salvar PDF / Imprimir</button>
+            <button type="button" class="btn btn-submit" id="salvarAvaliacao" onclick="salvarAvaliacao();">☁️ Salvar avaliação no Supabase</button>
+            <button type="button" class="btn btn-submit" onclick="enviarRelatorio();">✉️ Enviar relatório consolidado</button>
         </div>
+        <p id="mensagem" role="status" style="margin-top:15px;font-weight:600"></p>
 
     </form>
 </div>
 
 <script>
-  function calcularAutomatico() {
-        const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
-        const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
-        const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
-        const nPerguntas = parseFloat(document.getElementById('nota-perguntas').value) || 0;
-        const nKataAcima = parseFloat(document.getElementById('nota-kata-acima').value) || 0;
-
-        const saldoTotal = nKihon + nKata + nKumite + nPerguntas + nKataAcima;
-        const mediaCalculada = saldoTotal / 3;
-
-        document.getElementById('saldo-total').value = saldoTotal.toFixed(2);
-        document.getElementById('media-final').value = mediaCalculada.toFixed(2);
-    }
+    // Configure API_URL para a URL publicada do servidor (ex.: https://seu-api.onrender.com).
+    const API_URL = (window.API_URL || localStorage.getItem('atarashii_api_url') || 'https://SEU-SERVIDOR.onrender.com').replace(/\/$/, '');
     const selectNome = document.getElementById('nome');
     const form = document.getElementById('formAvaliacao');
-    let programmaticChange = false; // Flag para impedir loops de salvamento cruzado
-
-    document.addEventListener('DOMContentLoaded', () => {
-        carregarListaAlunos();
-        
-        if (localStorage.getItem('avaliador_global')) {
-            document.getElementById('avaliador').value = localStorage.getItem('avaliador_global');
-        }
-        
-        const ultimoAtivo = localStorage.getItem('aluno_ativo_global');
-        if (ultimoAtivo && alunoExistenaLista(ultimoAtivo)) {
-            selectNome.value = ultimoAtivo;
-            carregarDadosAluno(ultimoAtivo);
-        } else {
-            limparFormulario();
-        }
-
-        // Eventos nativos acionados apenas por alteração humana em tempo real
-        form.addEventListener('input', (e) => {
-            if (e.target.id !== 'nome') salvarDadosAlunoAtual();
-        });
-        form.addEventListener('change', (e) => {
-            if (e.target.id !== 'nome') salvarDadosAlunoAtual();
-        });
-    });
-
-    function alunoExistenaLista(nomeAluno) {
-        const alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
-        return alunos.includes(nomeAluno);
+    let authToken = sessionStorage.getItem('atarashii_exame_token') || '';
+    let salvando = false;
+    const mostrar = (msg, erro=false) => { const el=document.getElementById('mensagem'); el.textContent=msg; el.style.color=erro?'#b91c1c':'#166534'; };
+    function calcularAutomatico() {
+        const soma=['nota-kihon','nota-kata','nota-kumite','nota-perguntas','nota-kata-acima'].reduce((s,id)=>s+(parseFloat(document.getElementById(id).value)||0),0);
+        document.getElementById('saldo-total').value=soma.toFixed(2);
+        document.getElementById('media-final').value=(soma/3).toFixed(2);
     }
-
-    function carregarListaAlunos() {
-        const alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
-        selectNome.innerHTML = '<option value="">-- Escolha um karateca ou clique em Novo --</option>';
-        
-        alunos.sort().forEach(aluno => {
-            const opt = document.createElement('option');
-            opt.value = aluno;
-            opt.textContent = aluno;
-            selectNome.appendChild(opt);
-        });
+    async function api(path, options={}) {
+        const response=await fetch(API_URL+path,{...options,headers:{'Content-Type':'application/json',...(authToken?{Authorization:`Bearer ${authToken}`}:{ }),...(options.headers||{})}});
+        const data=await response.json().catch(()=>({erro:'Resposta inválida do servidor.'}));
+        if(!response.ok) throw new Error(data.erro||`Erro HTTP ${response.status}`);
+        return data;
     }
-
-    function adicionarNovoAluno() {
-        const novoNome = prompt("Digite o nome completo do novo aluno:");
-        if (!novoNome || novoNome.trim() === "") return;
-
-        const nomeFormatado = novoNome.trim();
-        let alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
-
-        if (!alunos.includes(nomeFormatado)) {
-            alunos.push(nomeFormatado);
-            localStorage.setItem('lista_karatecas', JSON.stringify(alunos));
-        }
-
-        carregarListaAlunos();
-        
-        // Ativa isolamento e limpa a tela ANTES de registrar o novo aluno
-        programmaticChange = true;
-        selectNome.value = nomeFormatado;
-        localStorage.setItem('aluno_ativo_global', nomeFormatado);
-        limparFormulario();
-        programmaticChange = false;
-
-        // Salva uma cópia limpa exclusiva para ele
-        salvarDadosAlunoAtual();
+    async function login() {
+        if(API_URL.includes('SEU-SERVIDOR')) { const url=prompt('Informe a URL base da API publicada (Render), sem / no final:'); if(!url)return; localStorage.setItem('atarashii_api_url',url.trim()); location.reload(); return; }
+        const usuario=prompt('Usuário do professor:'); if(!usuario)return;
+        const senha=prompt('Senha do professor:'); if(!senha)return;
+        try { const r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({usuario,senha})}); authToken=r.token; sessionStorage.setItem('atarashii_exame_token',authToken); await carregarAlunos(); }
+        catch(e){mostrar(e.message,true);}
     }
-
-    selectNome.addEventListener('change', (e) => {
-        if (programmaticChange) return;
-        const alunoSelecionado = e.target.value;
-        localStorage.setItem('aluno_ativo_global', alunoSelecionado);
-        
-        if (alunoSelecionado) {
-            carregarDadosAluno(alunoSelecionado);
-        } else {
-            limparFormulario();
-        }
-    });
-
-    function salvarDadosAlunoAtual() {
-        if (programmaticChange) return;
-        const aluno = selectNome.value;
-        
-        localStorage.setItem('avaliador_global', document.getElementById('avaliador').value);
-        
-        if (!aluno) return;
-
-        const dados = {
-            faixaAtual: document.getElementById('faixa-atual').value,
-            faixaPretendida: document.getElementById('faixa-pretendida').value,
-            resultado: document.getElementById('resultado').value,
-            nota: document.getElementById('nota').value,
-            obsKihon: document.getElementById('obs_kihon').value,
-            obsKata: document.getElementById('obs_kata').value,
-            obsKumite: document.getElementById('obs_kumite').value,
-            // NOVOS CAMPOS ADICIONADOS PARA SALVAMENTO INDIVIDUAL:
-            notaKihon: document.getElementById('nota-kihon').value,
-            notaKata: document.getElementById('nota-kata').value,
-            notaKumite: document.getElementById('nota-kumite').value,
-            notaPerguntas: document.getElementById('nota-perguntas').value,
-            notaKataAcima: document.getElementById('nota-kata-acima').value,
-            checkboxes: []
-        };
-
-        document.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
-            dados.checkboxes.push({ name: cb.name, value: cb.value });
-        });
-
-        localStorage.setItem('karateca_' + aluno, JSON.stringify(dados));
+    async function carregarAlunos() {
+        try {
+            const data=await api('/api/exame-avaliacao/alunos');
+            try { const sessao=await api('/api/auth/me'); document.getElementById('avaliador').value=sessao.usuario.nome||sessao.usuario.usuario; } catch (_) {}
+            selectNome.innerHTML='<option value="">-- Selecione um aluno aprovado --</option>';
+            data.alunos.forEach(a=>{const o=document.createElement('option');o.value=a.usuario;o.textContent=a.nome;selectNome.append(o);});
+            if(!data.alunos.length) mostrar('Nenhum aluno com Kihon, Kata e Kumite aprovados no prontuário técnico.');
+        } catch(e) { if(!authToken){await login();return;} authToken='';sessionStorage.removeItem('atarashii_exame_token');mostrar(`Não foi possível carregar alunos: ${e.message}`,true); }
     }
-
-    function carregarDadosAluno(aluno) {
-        programmaticChange = true;
-        limparFormulario();
-
-        const stringDados = localStorage.getItem('karateca_' + aluno);
-        if (!stringDados) {
-            programmaticChange = false;
-            return;
-        }
-
-        const dados = JSON.parse(stringDados);
-
-        if (dados.faixaAtual) document.getElementById('faixa-atual').value = dados.faixaAtual;
-        if (dados.faixaPretendida) document.getElementById('faixa-pretendida').value = dados.faixaPretendida;
-        if (dados.resultado) document.getElementById('resultado').value = dados.resultado;
-        if (dados.nota) document.getElementById('nota').value = dados.nota;
-        if (dados.obsKihon) document.getElementById('obs_kihon').value = dados.obsKihon;
-        if (dados.obsKata) document.getElementById('obs_kata').value = dados.obsKata;
-        if (dados.obsKumite) document.getElementById('obs_kumite').value = dados.obsKumite;
-
-        // REINSERÇÃO DOS VALORES SALVOS DE NOTAS NA TELA:
-        document.getElementById('nota-kihon').value = dados.notaKihon !== undefined ? dados.notaKihon : '0';
-        document.getElementById('nota-kata').value = dados.notaKata !== undefined ? dados.notaKata : '0';
-        document.getElementById('nota-kumite').value = dados.notaKumite !== undefined ? dados.notaKumite : '0';
-        document.getElementById('nota-perguntas').value = dados.notaPerguntas !== undefined ? dados.notaPerguntas : '0.0';
-        document.getElementById('nota-kata-acima').value = dados.notaKataAcima !== undefined ? dados.notaKataAcima : '0.0';
-
-        if (dados.checkboxes) {
-            dados.checkboxes.forEach(item => {
-                const cb = document.querySelector(`input[name="${item.name}"][value="${item.value}"]`);
-                if (cb) cb.checked = true;
-            });
-        }
-        
-        // Recalcula o saldo total e média com base nos dados carregados
+    function coletarAvaliacao() {
         calcularAutomatico();
-        
-        programmaticChange = false;
+        const selecionado=selectNome.selectedOptions[0];
+        return {usuario:selectNome.value, faixaAtual:document.getElementById('faixa-atual').value, faixaPretendida:document.getElementById('faixa-pretendida').value,
+            data:document.getElementById('data').value, resultado:document.getElementById('resultado').value, conceito:document.getElementById('nota').value.trim(),
+            notas:{kihon:+document.getElementById('nota-kihon').value||0,kata:+document.getElementById('nota-kata').value||0,kumite:+document.getElementById('nota-kumite').value||0,perguntas:+document.getElementById('nota-perguntas').value||0,kataAcima:+document.getElementById('nota-kata-acima').value||0,saldo:+document.getElementById('saldo-total').value,media:+document.getElementById('media-final').value},
+            observacoes:{kihon:document.getElementById('obs_kihon').value.trim(),kata:document.getElementById('obs_kata').value.trim(),kumite:document.getElementById('obs_kumite').value.trim()},
+            pontosFortes:[...document.querySelectorAll('input[name$="_good"]:checked')].map(x=>`${x.name.split('_')[0]}: ${x.value}`),
+            melhorias:[...document.querySelectorAll('input[name$="_improve"]:checked')].map(x=>`${x.name.split('_')[0]}: ${x.value}`)};
+    }
+    async function salvarAvaliacao() {
+        if(salvando)return; const a=coletarAvaliacao(); if(!a.usuario){mostrar('Selecione um aluno.',true);return;}
+        if(!authToken){await login();return;}
+        salvando=true; const btn=document.getElementById('salvarAvaliacao');btn.disabled=true;
+        try {const r=await api('/api/exame-avaliacao',{method:'POST',body:JSON.stringify(a)});mostrar(r.mensagem||'Avaliação salva no Supabase.');}
+        catch(e){mostrar(e.message,true);} finally{salvando=false;btn.disabled=false;}
+    }
+    async function enviarRelatorio(){
+        if(!authToken){await login();return;}
+        if(!confirm('Preparar um único email com todas as avaliações deste semestre para o professor?'))return;
+        try {
+            const {semestre, avaliacoes}=await api('/api/exame-avaliacao/relatorio');
+            if(!avaliacoes.length){mostrar('Ainda não há avaliações salvas neste semestre.',true);return;}
+            const linhas=avaliacoes.map(a=>{
+                const d=a.dados||{}, n=d.notas||{}, o=d.observacoes||{};
+                return `ALUNO: ${a.aluno}\nAVALIADOR: ${a.avaliador}\nFaixa pretendida: ${d.faixaPretendida||'-'} | Resultado: ${d.resultado||'-'}\nNotas: Kihon ${n.kihon??'-'}; Kata ${n.kata??'-'}; Kumite ${n.kumite??'-'}; Perguntas ${n.perguntas??'-'}; Média ${n.media??'-'}\nConceito: ${d.conceito||'-'}\nPontos fortes: ${(d.pontosFortes||[]).join('; ')||'-'}\nOportunidades de melhoria: ${(d.melhorias||[]).join('; ')||'-'}\nObservações — Kihon: ${o.kihon||'-'} | Kata: ${o.kata||'-'} | Kumite: ${o.kumite||'-'}\n----------------------------------------`;
+            }).join('\n\n');
+            const corpo=`Relatório consolidado do Exame de Faixa — ${semestre}\nAssociação Atarashii Karatê-Do Shotokan\n\n${linhas}`;
+            window.location.href=`mailto:luedo25@msn.com?subject=${encodeURIComponent(`Notas do Exame de Faixa - ${semestre}`)}&body=${encodeURIComponent(corpo)}`;
+            mostrar('Rascunho aberto no aplicativo de email. Revise e envie para o professor.');
+        } catch(e){mostrar(e.message,true);}
     }
 
-    function limparFormulario() {
-        document.getElementById('faixa-atual').selectedIndex = 0;
-        document.getElementById('faixa-pretendida').selectedIndex = 0;
-        document.getElementById('resultado').selectedIndex = 0;
-        document.getElementById('nota').value = '';
-        document.getElementById('obs_kihon').value = '';
-        document.getElementById('obs_kata').value = '';
-        document.getElementById('obs_kumite').value = '';
-        
-        // LIMPEZA DOS CAMPOS DE NOTAS MARCADOS:
-        document.getElementById('nota-kihon').value = '0';
-        document.getElementById('nota-kata').value = '0';
-        document.getElementById('nota-kumite').value = '0';
-        document.getElementById('nota-perguntas').selectedIndex = 0;
-        document.getElementById('nota-kata-acima').selectedIndex = 0;
-        document.getElementById('saldo-total').value = '0.00';
-        document.getElementById('media-final').value = '0.00';
-        
-        document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-            cb.checked = false;
-        });
-    }
-
-    function removerAlunoAtual() {
-        const aluno = selectNome.value;
-        if (!aluno) {
-            alert("Selecione um aluno válido para excluir.");
-            return;
-        }
-
-        if (confirm(`Deseja apagar permanentemente a avaliação de "${aluno}"?`)) {
-            localStorage.removeItem('karateca_' + aluno);
-            
-            let alunos = JSON.parse(localStorage.getItem('lista_karatecas')) || [];
-            alunos = alunos.filter(a => a !== aluno);
-            localStorage.setItem('lista_karatecas', JSON.stringify(alunos));
-            
-            localStorage.removeItem('aluno_ativo_global');
-            
-            programmaticChange = true;
-            carregarListaAlunos();
-            limparFormulario();
-            programmaticChange = false;
-            alert("Aluno removido.");
-        }
-    }
-
-function enviarEmailSensei() {
-    const nome = selectNome.value;
-    const data = document.getElementById('data').value;
-    const faixaAtual = document.getElementById('faixa-atual').value;
-    const faixaPretendida = document.getElementById('faixa-pretendida').value;
-    const resultado = document.getElementById('resultado').value;
-    const nota = document.getElementById('nota').value;
-    const avaliador = document.getElementById('avaliador').value;
-    const anotacoesBanca = document.getElementById('nota').value.trim();
-
-    if (!nome) {
-        alert('Por favor, selecione ou adicione o nome do aluno antes de enviar.');
-        return;
-    }
-
-    const nKihon = parseFloat(document.getElementById('nota-kihon').value) || 0;
-    const nKata = parseFloat(document.getElementById('nota-kata').value) || 0;
-    const nKumite = parseFloat(document.getElementById('nota-kumite').value) || 0;
-    const nPerguntas = parseFloat(document.getElementById('nota-perguntas').value) || 0;
-    const nKataAcima = parseFloat(document.getElementById('nota-kata-acima').value) || 0;
-
-    const saldoTotal = document.getElementById('saldo-total').value;
-    const mediaCalculada = document.getElementById('media-final').value;
-
-    // Captura o texto das caixas de observações das seções
-    const obsTextareas = document.querySelectorAll('.observacoes');
-    const obsKihon = obsTextareas[0] ? obsTextareas[0].value.trim() : '';
-    const obsKata = obsTextareas[1] ? obsTextareas[1].value.trim() : '';
-    const obsKumite = obsTextareas[2] ? obsTextareas[2].value.trim() : '';
-
-    let pontosFortes = [];
-    let melhorias = [];
-
-    // Coleta itens checados
-    document.querySelectorAll('input[name="kihon_good"]:checked').forEach(el => pontosFortes.push("Kihon: " + el.value));
-    document.querySelectorAll('input[name="kihon_improve"]:checked').forEach(el => melhorias.push("Kihon: " + el.value));
-    document.querySelectorAll('input[name="kata_good"]:checked').forEach(el => pontosFortes.push("Kata: " + el.value));
-    document.querySelectorAll('input[name="kata_improve"]:checked').forEach(el => melhorias.push("Kata: " + el.value));
-    document.querySelectorAll('input[name="kumite_good"]:checked').forEach(el => pontosFortes.push("Kumite: " + el.value));
-    document.querySelectorAll('input[name="kumite_improve"]:checked').forEach(el => melhorias.push("Kumite: " + el.value));
-
-    // Construção do texto estruturado
-    let corpo = `Oss, Sensei!\n\nSegue o relatório da avaliação técnica:\n\n`;
-    corpo += `==========================================\n`;
-    corpo += `DADOS DA AVALIAÇÃO\n`;
-    corpo += `==========================================\n`;
-    corpo += `Aluno: ${nome}\n`;
-    corpo += `Data: ${data ? data : 'Não informada'}\n`;
-    corpo += `Faixa Atual: ${faixaAtual}\n`;
-    corpo += `Exame para Faixa: ${faixaPretendida}\n`;
-    corpo += `Avaliador: ${avaliador}\n`;
-    corpo += `Status Final: ${resultado}\n`;
-    corpo += `Conceito Geral / Anotações da Banca:\n${anotacoesBanca ? anotacoesBanca : 'Nenhuma anotação extra.'}\n\n`;
-
-    corpo += `==========================================\n`;
-    corpo += `NOTAS DA AVALIAÇÃO\n`;
-    corpo += `==========================================\n`;
-    corpo += `• Kihon: ${nKihon.toFixed(1)} / 10\n`;
-    corpo += `• Kata: ${nKata.toFixed(1)} / 10\n`;
-    corpo += `• Kumite: ${nKumite.toFixed(1)} / 10\n`;
-    corpo += `• Perguntas: ${nPerguntas.toFixed(1)}\n`;
-    corpo += `• Kata acima da faixa: ${nKataAcima >= 0 ? '+' : ''}${nKataAcima.toFixed(1)}\n`;
-    corpo += `------------------------------------------\n`;
-    corpo += `SALDO TOTAL DAS NOTAS: ${saldoTotal}\n`;
-    corpo += `MÉDIA FINAL (Soma / 3): ${mediaCalculada}\n\n`;
-
-    corpo += `==========================================\n`;
-    corpo += `PONTOS FORTES\n`;
-    corpo += `==========================================\n`;
-    if (pontosFortes.length > 0) {
-        pontosFortes.forEach(item => { corpo += `• ${item}\n`; });
-    } else {
-        corpo += `Nenhum item marcado.\n`;
-    }
-
-    corpo += `\n==========================================\n`;
-    corpo += `OPORTUNIDADES DE MELHORIA\n`;
-    corpo += `==========================================\n`;
-    if (melhorias.length > 0) {
-        melhorias.forEach(item => { corpo += `• ${item}\n`; });
-    } else {
-        corpo += `Nenhum item marcado.\n`;
-    }
-
-    corpo += `\n==========================================\n`;
-    corpo += `ANOTAÇÕES E OBSERVAÇÕES POR SEÇÃO\n`;
-    corpo += `==========================================\n`;
-    corpo += `[Kihon]: ${obsKihon ? obsKihon : 'Nenhuma anotação.'}\n\n`;
-    corpo += `[Kata]: ${obsKata ? obsKata : 'Nenhuma anotação.'}\n\n`;
-    corpo += `[Kumite]: ${obsKumite ? obsKumite : 'Nenhuma anotação.'}\n`;
-
-    corpo += `\nOss!`;
-
-    // Codifica o assunto e o corpo para o formato de URL
-    const assuntoFormatado = encodeURIComponent(`Notas Exame de Faixa - ${nome}`);
-    const corpoFormatado = encodeURIComponent(corpo);
-
-    // Abre o aplicativo de email com Destinatário, Assunto e Corpo preenchidos
-    window.open(`mailto:luedo25@msn.com?subject=${assuntoFormatado}&body=${corpoFormatado}`, '_self');
-}
+    document.addEventListener('DOMContentLoaded',()=>{carregarAlunos();document.getElementById('avaliador').readOnly=true;document.getElementById('avaliador').placeholder='Nome obtido do usuário autenticado';});
+    selectNome.addEventListener('change',async()=>{if(!selectNome.value)return;try{const r=await api(`/api/exame-avaliacao/${encodeURIComponent(selectNome.value)}`);if(r.avaliacao) preencher(r.avaliacao.dados);else limparCampos();}catch(e){mostrar(e.message,true);}});
+    function preencher(d){if(!d)return; document.getElementById('faixa-atual').value=d.faixaAtual||document.getElementById('faixa-atual').value;document.getElementById('faixa-pretendida').value=d.faixaPretendida||document.getElementById('faixa-pretendida').value;document.getElementById('resultado').value=d.resultado||'APROVADO';document.getElementById('nota').value=d.conceito||'';document.getElementById('obs_kihon').value=d.observacoes?.kihon||'';document.getElementById('obs_kata').value=d.observacoes?.kata||'';document.getElementById('obs_kumite').value=d.observacoes?.kumite||'';for(const k of ['kihon','kata','kumite'])document.getElementById(`nota-${k}`).value=d.notas?.[k]??0;document.getElementById('nota-perguntas').value=d.notas?.perguntas??0;document.getElementById('nota-kata-acima').value=d.notas?.kataAcima??0;document.querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=[...(d.pontosFortes||[]),...(d.melhorias||[])].some(v=>v.endsWith(c.value)));calcularAutomatico();}
+    function limparCampos(){const aluno=selectNome.value;const avaliador=document.getElementById('avaliador').value;document.getElementById('formAvaliacao').reset();selectNome.value=aluno;document.getElementById('avaliador').value=avaliador;document.getElementById('data').value=hoje;document.getElementById('avaliador').readOnly=true;calcularAutomatico();}
+    const hoje=new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo'}).format(new Date());
+    document.getElementById('data').value=hoje;
 </script>
 
 </body>
