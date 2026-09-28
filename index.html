@@ -72,6 +72,20 @@
             margin-bottom: 20px;
         }
 
+        .aluno-sticky-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            margin: -20px -20px 18px;
+            padding: 12px 20px 10px;
+            background: rgba(255, 255, 255, 0.98);
+            border-bottom: 2px solid var(--border-color);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .aluno-sticky-bar .form-group { max-width: 680px; margin: 0 auto; }
+        #statusRascunho { display: block; margin-top: 6px; color: #52606d; font-size: 0.82rem; }
+
         .form-group {
             display: flex;
             flex-direction: column;
@@ -325,21 +339,21 @@
 
 <div class="container">
     <form id="formAvaliacao">
-        
+        <div class="aluno-sticky-bar">
+            <div class="form-group">
+                <label for="nome">Aluno aprovado para avaliação:</label>
+                <select id="nome" required>
+                    <option value="">-- Selecione um aluno aprovado --</option>
+                </select>
+                <small id="statusRascunho" aria-live="polite">Os dados são salvos automaticamente neste celular.</small>
+            </div>
+        </div>
+
         <h1>Associação Atarashii Karatê-Do Shotokan</h1>
         <h1>Ficha de Avaliação</h1>
         <h2>Exame de Faixa • Shotokan</h2>
 
         <div class="grid-dados">
-            <div class="form-group span-2-desktop">
-                <label for="nome">Aluno aprovado para avaliação:</label>
-                <div style="display: flex; gap: 10px;">
-                    <select id="nome" required style="flex-grow: 1;">
-                        <option value="">-- Escolha um karateca ou clique em Novo --</option>
-                    </select>
-                    
-                </div>
-            </div>
             <div class="form-group">
                 <label for="data">Data da Avaliação:</label>
                 <input type="text" id="data" value="28/06/2026" readonly>
@@ -581,14 +595,108 @@
 <script>
     // URL pública da API Render usada pelas páginas do exame.
     const API_URL = 'https://api-associacao-mp.onrender.com';
+    const CHAVE_RASCUNHOS = 'atarashii:exame-avaliacao:rascunhos:v1';
     const selectNome = document.getElementById('nome');
     const form = document.getElementById('formAvaliacao');
+    const campoAvaliador = document.getElementById('avaliador');
     let salvando = false;
+    let alunoAtual = '';
+    let avaliadorDaFicha = '';
+    let rascunhoAlterado = false;
+    let timerAutoSave = null;
+    let estadoLocal = lerEstadoLocal();
     const mostrar = (msg, erro = false) => {
         const el = document.getElementById('mensagem');
         el.textContent = msg;
         el.style.color = erro ? '#b91c1c' : '#166534';
     };
+
+    function lerEstadoLocal() {
+        try {
+            const estado = JSON.parse(localStorage.getItem(CHAVE_RASCUNHOS) || '{}');
+            return {
+                avaliador: String(estado.avaliador || ''),
+                ultimoAluno: String(estado.ultimoAluno || ''),
+                rascunhos: estado.rascunhos && typeof estado.rascunhos === 'object' ? estado.rascunhos : {}
+            };
+        } catch (erro) {
+            console.warn('Não foi possível ler os rascunhos locais:', erro);
+            return { avaliador: '', ultimoAluno: '', rascunhos: {} };
+        }
+    }
+
+    function gravarEstadoLocal() {
+        try {
+            localStorage.setItem(CHAVE_RASCUNHOS, JSON.stringify(estadoLocal));
+            atualizarStatusRascunho();
+            return true;
+        } catch (erro) {
+            console.error('Não foi possível salvar o rascunho neste aparelho:', erro);
+            mostrar('Não foi possível salvar neste aparelho. Verifique o espaço disponível no navegador.', true);
+            return false;
+        }
+    }
+
+    function normalizarNomeAvaliador(valor) {
+        return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
+    }
+
+    function limparNomeAvaliador() {
+        return campoAvaliador.value.trim().replace(/\s+/g, ' ');
+    }
+
+    function chaveRascunho(avaliador, usuario) {
+        return `${normalizarNomeAvaliador(avaliador)}::${usuario}`;
+    }
+
+    function salvarNomeAvaliador() {
+        estadoLocal.avaliador = campoAvaliador.value.trim().replace(/\s+/g, ' ');
+        gravarEstadoLocal();
+    }
+
+    function listarRascunhosAvaliador(avaliador = limparNomeAvaliador()) {
+        const chaveNome = normalizarNomeAvaliador(avaliador);
+        if (!chaveNome) return [];
+        return Object.entries(estadoLocal.rascunhos)
+            .filter(([, item]) => normalizarNomeAvaliador(item.avaliador) === chaveNome)
+            .map(([chave, item]) => ({ chave, ...item }));
+    }
+
+    function atualizarStatusRascunho() {
+        const status = document.getElementById('statusRascunho');
+        if (!status) return;
+        const avaliador = limparNomeAvaliador();
+        const semAvaliador = Object.values(estadoLocal.rascunhos).filter(item => !item.avaliador).length;
+        if (avaliador.length < 2) {
+            status.textContent = semAvaliador
+                ? `${semAvaliador} rascunho(s) salvo(s) neste aparelho; informe seu nome para associá-los.`
+                : 'Informe seu nome. Ele será lembrado neste aparelho.';
+            return;
+        }
+        const quantidade = listarRascunhosAvaliador(avaliador).length;
+        const partes = [];
+        if (quantidade) partes.push(`${quantidade} aluno(s) com rascunho aguardando envio`);
+        if (semAvaliador) partes.push(`${semAvaliador} rascunho(s) aguardando associação ao avaliador`);
+        status.textContent = partes.length ? `${partes.join('; ')}.` : 'Sem rascunhos pendentes para este avaliador.';
+    }
+
+    function adotarRascunhosSemAvaliador(avaliador) {
+        if (avaliador.length < 2) return;
+        const semNome = Object.entries(estadoLocal.rascunhos).filter(([, item]) => !item.avaliador);
+        for (const [chaveAntiga, item] of semNome) {
+            const chaveNova = chaveRascunho(avaliador, item.usuario);
+            const existente = estadoLocal.rascunhos[chaveNova];
+            delete estadoLocal.rascunhos[chaveAntiga];
+            if (!existente || String(item.atualizadoEm) > String(existente.atualizadoEm)) {
+                item.avaliador = avaliador;
+                item.dados.avaliador = avaliador;
+                item.atualizadoEm = new Date().toISOString();
+                estadoLocal.rascunhos[chaveNova] = item;
+            }
+        }
+        if (semNome.length) gravarEstadoLocal();
+    }
 
     function calcularAutomatico() {
         const soma = ['nota-kihon', 'nota-kata', 'nota-kumite', 'nota-perguntas', 'nota-kata-acima']
@@ -638,19 +746,25 @@
                 opcao.textContent = aluno.nome;
                 selectNome.appendChild(opcao);
             });
+            if (dados.alunos.some(aluno => aluno.usuario === estadoLocal.ultimoAluno)) {
+                selectNome.value = estadoLocal.ultimoAluno;
+                alunoAtual = selectNome.value;
+                restaurarRascunho(alunoAtual);
+            }
             mostrar(dados.alunos.length
                 ? `${dados.alunos.length} aluno(s) aprovado(s) carregado(s). Informe seu nome para avaliar.`
                 : 'Nenhum aluno com Kihon, Kata e Kumite aprovados no prontuário técnico.');
+            atualizarStatusRascunho();
         } catch (erro) {
             mostrar(`Não foi possível conectar à API: ${erro.message}`, true);
         }
     }
 
-    function coletarAvaliacao() {
+    function coletarAvaliacao(usuario = selectNome.value) {
         calcularAutomatico();
         return {
-            usuario: selectNome.value,
-            avaliador: document.getElementById('avaliador').value.trim().replace(/\s+/g, ' '),
+            usuario,
+            avaliador: limparNomeAvaliador(),
             faixaAtual: document.getElementById('faixa-atual').value,
             faixaPretendida: document.getElementById('faixa-pretendida').value,
             data: document.getElementById('data').value,
@@ -677,43 +791,179 @@
         };
     }
 
+    function salvarRascunhoLocal(usuario = selectNome.value) {
+        const avaliador = limparNomeAvaliador();
+        if (!usuario) return false;
+        const dados = coletarAvaliacao(usuario);
+        const chave = chaveRascunho(avaliador, usuario);
+        estadoLocal.rascunhos[chave] = {
+            usuario,
+            avaliador,
+            atualizadoEm: new Date().toISOString(),
+            dados
+        };
+        estadoLocal.ultimoAluno = usuario;
+        rascunhoAlterado = false;
+        return gravarEstadoLocal();
+    }
+
+    function restaurarRascunho(usuario) {
+        const avaliador = limparNomeAvaliador();
+        const salvo = estadoLocal.rascunhos[chaveRascunho(avaliador, usuario)];
+        const nomeAtual = campoAvaliador.value;
+        form.reset();
+        selectNome.value = usuario;
+        campoAvaliador.value = nomeAtual || estadoLocal.avaliador || '';
+        avaliadorDaFicha = campoAvaliador.value.trim().replace(/\s+/g, ' ');
+        document.getElementById('data').value = hoje;
+
+        if (salvo?.dados) {
+            const dados = salvo.dados;
+            const valores = {
+                'faixa-atual': dados.faixaAtual,
+                'faixa-pretendida': dados.faixaPretendida,
+                data: dados.data,
+                resultado: dados.resultado,
+                nota: dados.conceito,
+                'nota-kihon': dados.notas?.kihon,
+                'nota-kata': dados.notas?.kata,
+                'nota-kumite': dados.notas?.kumite,
+                'nota-perguntas': dados.notas?.perguntas,
+                'nota-kata-acima': dados.notas?.kataAcima,
+                'obs_kihon': dados.observacoes?.kihon,
+                'obs_kata': dados.observacoes?.kata,
+                'obs_kumite': dados.observacoes?.kumite
+            };
+            for (const [id, valor] of Object.entries(valores)) {
+                const campo = document.getElementById(id);
+                if (campo && valor !== undefined && valor !== null) campo.value = String(valor);
+            }
+            const marcados = new Set([...(dados.pontosFortes || []), ...(dados.melhorias || [])]);
+            form.querySelectorAll('input[type="checkbox"]').forEach(campo => {
+                const categoria = campo.name.split('_')[0];
+                campo.checked = marcados.has(`${categoria}: ${campo.value}`);
+            });
+        }
+        calcularAutomatico();
+        rascunhoAlterado = false;
+        atualizarStatusRascunho();
+    }
+
+    function agendarAutoSave() {
+        clearTimeout(timerAutoSave);
+        timerAutoSave = setTimeout(() => {
+            if (rascunhoAlterado && selectNome.value) salvarRascunhoLocal(selectNome.value);
+        }, 250);
+    }
+
+    function salvarRascunhoPendente() {
+        clearTimeout(timerAutoSave);
+        if (!rascunhoAlterado || !selectNome.value) return;
+        const nomeAtual = campoAvaliador.value;
+        if (normalizarNomeAvaliador(nomeAtual) !== normalizarNomeAvaliador(avaliadorDaFicha)) {
+            campoAvaliador.value = avaliadorDaFicha;
+            salvarRascunhoLocal(selectNome.value);
+            campoAvaliador.value = nomeAtual;
+        } else {
+            salvarRascunhoLocal(selectNome.value);
+        }
+    }
+
+    function trocarAluno() {
+        const novoAluno = selectNome.value;
+        const alunoAnterior = alunoAtual;
+        clearTimeout(timerAutoSave);
+
+        if (alunoAnterior && rascunhoAlterado) {
+            salvarRascunhoLocal(alunoAnterior);
+        } else if (!alunoAnterior && rascunhoAlterado && novoAluno) {
+            // Se o avaliador preencheu a ficha antes de escolher o primeiro aluno, associa os dados ao aluno selecionado.
+            salvarRascunhoLocal(novoAluno);
+        }
+
+        alunoAtual = novoAluno;
+        estadoLocal.ultimoAluno = novoAluno;
+        gravarEstadoLocal();
+        if (alunoAnterior || !rascunhoAlterado) restaurarRascunho(novoAluno);
+        rascunhoAlterado = false;
+    }
+
+    function aoEditarFormulario(evento) {
+        if (evento.target === selectNome) return;
+        if (evento.target === campoAvaliador) {
+            clearTimeout(timerAutoSave);
+            salvarNomeAvaliador();
+            if (evento.type === 'change') {
+                const nomeNovo = limparNomeAvaliador();
+                if (normalizarNomeAvaliador(nomeNovo) !== normalizarNomeAvaliador(avaliadorDaFicha)) {
+                    if (rascunhoAlterado && selectNome.value) {
+                        const nomeAtual = campoAvaliador.value;
+                        campoAvaliador.value = avaliadorDaFicha;
+                        salvarRascunhoLocal(selectNome.value);
+                        campoAvaliador.value = nomeAtual;
+                    }
+                    adotarRascunhosSemAvaliador(nomeNovo);
+                    rascunhoAlterado = false;
+                    if (selectNome.value) restaurarRascunho(selectNome.value);
+                    else avaliadorDaFicha = nomeNovo;
+                    mostrar('Nome do avaliador atualizado. Rascunhos de outros avaliadores continuam separados.');
+                }
+            }
+            atualizarStatusRascunho();
+            return;
+        }
+        rascunhoAlterado = true;
+        agendarAutoSave();
+    }
+
     async function salvarAvaliacao() {
         if (salvando) return;
+        salvarNomeAvaliador();
+        if (rascunhoAlterado && selectNome.value) salvarRascunhoLocal(selectNome.value);
+        const avaliador = limparNomeAvaliador();
+        if (avaliador.length < 2) {
+            mostrar('Informe o nome do avaliador antes de enviar.', true);
+            campoAvaliador.focus();
+            return;
+        }
+        adotarRascunhosSemAvaliador(avaliador);
+        const pendentes = listarRascunhosAvaliador(avaliador);
+        if (!pendentes.length) {
+            mostrar('Não há avaliações preenchidas para enviar. Selecione um aluno e preencha a ficha.', true);
+            return;
+        }
+
         salvando = true;
         const botao = document.getElementById('salvarAvaliacao');
         const textoOriginal = botao.textContent;
         botao.disabled = true;
-        botao.textContent = '⏳ Salvando avaliação...';
-        mostrar('Enviando notas e observações ao Supabase. Aguarde a confirmação...');
+        botao.textContent = `⏳ Enviando ${pendentes.length} aluno(s)...`;
+        mostrar(`Enviando as avaliações de ${pendentes.length} aluno(s) ao Supabase. Aguarde...`);
         try {
-            const avaliacao = coletarAvaliacao();
-            if (!avaliacao.avaliador || avaliacao.avaliador.length < 2) {
-                mostrar('Informe o nome do avaliador para continuar.', true);
-                document.getElementById('avaliador').focus();
-                return;
-            }
-            if (!avaliacao.usuario) {
-                mostrar('Selecione um aluno aprovado para avaliação.', true);
-                selectNome.focus();
-                return;
-            }
-            if (!await configurarApi()) {
-                mostrar('Não foi possível iniciar a conexão com o servidor.', true);
-                return;
-            }
-
-            const resposta = await api('/api/exame-avaliacao', {
+            const resposta = await api('/api/exame-avaliacao/lote', {
                 method: 'POST',
-                body: JSON.stringify(avaliacao)
+                body: JSON.stringify({ avaliador, avaliacoes: pendentes.map(item => item.dados) })
             });
-            if (!resposta.sucesso) throw new Error(resposta.erro || 'O servidor não confirmou a gravação.');
-            const horario = new Intl.DateTimeFormat('pt-BR', {
-                timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit'
-            }).format(new Date());
-            mostrar(`✅ Avaliação salva no Supabase com sucesso às ${horario}.`);
+            if (!resposta.sucesso) throw new Error(resposta.erro || 'O servidor não confirmou a gravação do lote.');
+
+            if (rascunhoAlterado && selectNome.value) salvarRascunhoLocal(selectNome.value);
+            let removidos = 0;
+            for (const enviado of pendentes) {
+                const atual = estadoLocal.rascunhos[enviado.chave];
+                if (atual && JSON.stringify(atual.dados) === JSON.stringify(enviado.dados)) {
+                    delete estadoLocal.rascunhos[enviado.chave];
+                    removidos++;
+                }
+            }
+            const limpouLocal = gravarEstadoLocal();
+            atualizarStatusRascunho();
+            const quantidade = Number(resposta.quantidade || removidos);
+            mostrar(`✅ Foram enviadas ${quantidade} avaliação(ões) ao Supabase.` +
+                (removidos < quantidade ? ' Uma edição feita durante o envio continua salva como rascunho.' : '') +
+                (!limpouLocal ? ' O envio foi confirmado, mas os rascunhos locais não puderam ser removidos.' : ''));
         } catch (erro) {
-            console.error('Falha ao salvar avaliação do exame:', erro);
-            mostrar(`❌ Não foi possível salvar a avaliação: ${erro.message || 'erro inesperado.'}`, true);
+            console.error('Falha ao enviar lote de avaliações:', erro);
+            mostrar(`❌ Não foi possível enviar as avaliações: ${erro.message || 'erro inesperado.'} Os rascunhos continuam salvos neste aparelho.`, true);
         } finally {
             salvando = false;
             botao.disabled = false;
@@ -721,22 +971,17 @@
         }
     }
 
-    function limparCampos() {
-        const alunoSelecionado = selectNome.value;
-        const avaliador = document.getElementById('avaliador').value;
-        form.reset();
-        selectNome.value = alunoSelecionado;
-        document.getElementById('avaliador').value = avaliador;
-        document.getElementById('avaliador').readOnly = false;
-        document.getElementById('data').value = hoje;
-        calcularAutomatico();
-    }
-
     const hoje = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(new Date());
     document.getElementById('data').value = hoje;
-    document.getElementById('avaliador').readOnly = false;
-    document.getElementById('avaliador').placeholder = 'Digite seu nome completo';
-    selectNome.addEventListener('change', limparCampos);
+    campoAvaliador.value = estadoLocal.avaliador;
+    campoAvaliador.placeholder = 'Digite seu nome completo';
+    selectNome.addEventListener('change', trocarAluno);
+    form.addEventListener('input', aoEditarFormulario);
+    form.addEventListener('change', aoEditarFormulario);
+    window.addEventListener('pagehide', salvarRascunhoPendente);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') salvarRascunhoPendente();
+    });
     document.getElementById('salvarAvaliacao').addEventListener('click', salvarAvaliacao);
     document.getElementById('imprimirPDF').addEventListener('click', () => window.print());
     document.addEventListener('DOMContentLoaded', carregarAlunos);
