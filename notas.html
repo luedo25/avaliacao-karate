@@ -73,7 +73,7 @@
 
         table {
             width: 100%;
-            min-width: 650px;
+            min-width: 940px;
             border-collapse: collapse;
         }
 
@@ -99,6 +99,22 @@
 
         .pendente {
             color: #777;
+        }
+
+        .aluno-cabecalho td {
+            color: #fff;
+            background: #44596e;
+            font-weight: 700;
+        }
+
+        .linha-media td {
+            background: #edf6ef;
+            font-weight: 700;
+        }
+
+        .nota {
+            text-align: center;
+            white-space: nowrap;
         }
 
         @media print {
@@ -141,13 +157,8 @@
     </main>
 
     <script>
-        const API_URL = (
-            window.API_URL
-            || localStorage.getItem('atarashii_api_url')
-            || 'https://SEU-SERVIDOR.onrender.com'
-        ).replace(/\/$/, '');
+        const API_URL = 'https://api-associacao-mp.onrender.com';
 
-        let token = sessionStorage.getItem('atarashii_exame_token') || '';
         let alunosAprovados = [];
         let avaliacoes = [];
         let semestreAtual = '';
@@ -157,7 +168,6 @@
                 ...opcoes,
                 headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                     ...(opcoes.headers || {})
                 }
             });
@@ -169,32 +179,6 @@
             return dados;
         }
 
-        async function autenticarProfessor() {
-            if (API_URL.includes('SEU-SERVIDOR')) {
-                const endereco = prompt('Informe a URL base da API publicada, sem a barra final:');
-                if (!endereco) return false;
-
-                localStorage.setItem('atarashii_api_url', endereco.trim());
-                location.reload();
-                return false;
-            }
-
-            const usuario = prompt('Usuário do professor:');
-            if (!usuario) return false;
-
-            const senha = prompt('Senha do professor:');
-            if (!senha) return false;
-
-            const sessao = await chamarApi('/api/auth/login', {
-                method: 'POST',
-                body: JSON.stringify({ usuario, senha })
-            });
-
-            token = sessao.token;
-            sessionStorage.setItem('atarashii_exame_token', token);
-            return true;
-        }
-
         async function carregarNotas() {
             try {
                 const [respostaAlunos, respostaAvaliacoes] = await Promise.all([
@@ -202,7 +186,6 @@
                     chamarApi('/api/exame-avaliacao/relatorio')
                 ]);
 
-                // Esta rota retorna somente alunos ativos com Kihon, Kata e Kumite aprovados.
                 alunosAprovados = respostaAlunos.alunos || [];
                 avaliacoes = respostaAvaliacoes.avaliacoes || [];
                 semestreAtual = respostaAvaliacoes.semestre || respostaAlunos.semestre || '';
@@ -213,20 +196,6 @@
                     ? 'Notas atualizadas. A lista mostra somente os alunos aprovados para avaliação.'
                     : 'Não há alunos aprovados para avaliação neste semestre.';
             } catch (erro) {
-                if (!token) {
-                    try {
-                        if (await autenticarProfessor()) {
-                            return carregarNotas();
-                        }
-                    } catch (erroLogin) {
-                        erro = erroLogin;
-                    }
-                } else {
-                    token = '';
-                    sessionStorage.removeItem('atarashii_exame_token');
-                }
-
-                // Em caso de falha, não deixa uma lista antiga visível.
                 alunosAprovados = [];
                 avaliacoes = [];
                 desenharTabela();
@@ -235,35 +204,74 @@
         }
 
         function desenharTabela() {
-            const avaliadores = [...new Set(avaliacoes.map(item => item.avaliador))]
-                .sort((a, b) => a.localeCompare(b, 'pt-BR'));
-
-            const titulos = ['<th>Nome do aluno</th>']
-                .concat(avaliadores.map(nome => `<th>${escaparHtml(nome)}</th>`))
-                .concat(['<th>Média final</th>', '<th>Avaliações</th>']);
-            document.getElementById('cabecalho').innerHTML = `<tr>${titulos.join('')}</tr>`;
+            document.getElementById('cabecalho').innerHTML = `<tr>
+                <th>Aluno</th><th>Avaliador</th><th>Kihon</th><th>Kata</th><th>Kumite</th>
+                <th>Perguntas</th><th>Kata acima da faixa</th><th>Média do avaliador</th>
+            </tr>`;
 
             const linhas = alunosAprovados.map(aluno => {
-                const notasAluno = avaliacoes.filter(item => item.usuario === aluno.usuario);
-                const medias = notasAluno
-                    .map(item => Number(item.dados?.notas?.media))
-                    .filter(Number.isFinite);
-                const mediaFinal = medias.length
-                    ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
-                    : '—';
+                const registros = avaliacoes
+                    .filter(item => item.usuario === aluno.usuario)
+                    .sort((a, b) => String(a.avaliador || '').localeCompare(String(b.avaliador || ''), 'pt-BR'));
+                
+                let somaKihon = 0, qtdKihon = 0;
+                let somaKata = 0, qtdKata = 0;
+                let somaKumite = 0, qtdKumite = 0;
 
-                const colunasAvaliadores = avaliadores.map(nome => {
-                    const avaliacao = notasAluno.find(item => item.avaliador === nome);
-                    const media = avaliacao?.dados?.notas?.media;
-                    return `<td>${media === undefined || media === null ? '—' : Number(media).toFixed(2)}</td>`;
+                registros.forEach(item => {
+                    const notas = item.dados?.notas || {};
+                    if (notas.kihon !== undefined && notas.kihon !== null && notas.kihon !== '') {
+                        somaKihon += Number(notas.kihon);
+                        qtdKihon++;
+                    }
+                    if (notas.kata !== undefined && notas.kata !== null && notas.kata !== '') {
+                        somaKata += Number(notas.kata);
+                        qtdKata++;
+                    }
+                    if (notas.kumite !== undefined && notas.kumite !== null && notas.kumite !== '') {
+                        somaKumite += Number(notas.kumite);
+                        qtdKumite++;
+                    }
                 });
 
-                return `<tr>
-                    <td>${escaparHtml(aluno.nome)}</td>
-                    ${colunasAvaliadores.join('')}
-                    <td class="media-final">${mediaFinal}</td>
-                    <td class="${medias.length ? '' : 'pendente'}">${medias.length}</td>
+                const medias = registros
+                    .map(obterMediaAvaliador)
+                    .filter(media => media !== null);
+                const mediaConsolidada = medias.length
+                    ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
+                    : '—';
+                
+                const exibirMedias = medias.length > 1;
+                const mediaKihonStr = (exibirMedias && qtdKihon > 0) ? (somaKihon / qtdKihon).toFixed(2) : '';
+                const mediaKataStr = (exibirMedias && qtdKata > 0) ? (somaKata / qtdKata).toFixed(2) : '';
+                const mediaKumiteStr = (exibirMedias && qtdKumite > 0) ? (somaKumite / qtdKumite).toFixed(2) : '';
+
+                const linhasAvaliacoes = registros.length
+                    ? registros.map(item => {
+                        const notas = item.dados?.notas || {};
+                        return `<tr>
+                            <td>${escaparHtml(aluno.nome)}</td>
+                            <td>${escaparHtml(item.avaliador)}</td>
+                            <td class="nota">${formatarNota(notas.kihon)}</td>
+                            <td class="nota">${formatarNota(notas.kata)}</td>
+                            <td class="nota">${formatarNota(notas.kumite)}</td>
+                            <td class="nota">${formatarNota(notas.perguntas)}</td>
+                            <td class="nota">${formatarNota(notas.kataAcima)}</td>
+                            <td class="nota media-final">${formatarNota(notas.media)}</td>
+                        </tr>`;
+                    }).join('')
+                    : `<tr><td>${escaparHtml(aluno.nome)}</td><td colspan="7" class="pendente">Sem avaliações registradas</td></tr>`;
+                
+                const linhaConsolidada = `<tr class="linha-media">
+                    <td colspan="2">Média consolidada de ${medias.length} avaliador(es)</td>
+                    <td class="nota media-final">${mediaKihonStr}</td>
+                    <td class="nota media-final">${mediaKataStr}</td>
+                    <td class="nota media-final">${mediaKumiteStr}</td>
+                    <td colspan="2"></td>
+                    <td class="nota media-final">${mediaConsolidada}</td>
                 </tr>`;
+                
+                return `<tr class="aluno-cabecalho"><td colspan="8">${escaparHtml(aluno.nome)}</td></tr>${linhasAvaliacoes}${linhaConsolidada}`;
             });
 
             document.getElementById('corpo').innerHTML = linhas.length
@@ -281,10 +289,19 @@
             }[caractere]));
         }
 
+        function formatarNota(valor) {
+            if (valor === undefined || valor === null || valor === '') return '—';
+            const numero = Number(valor);
+            return Number.isFinite(numero) ? numero.toFixed(2) : '—';
+        }
+
+        function obterMediaAvaliador(avaliacao) {
+            const media = avaliacao?.dados?.notas?.media;
+            return typeof media === 'number' && Number.isFinite(media) ? media : null;
+        }
+
         async function prepararEmail() {
             try {
-                if (!token && !await autenticarProfessor()) return;
-
                 if (!avaliacoes.length) {
                     document.getElementById('mensagem').textContent = 'Ainda não há avaliações salvas neste semestre.';
                     return;
@@ -297,12 +314,45 @@
 
                 const blocosAlunos = alunosAprovados.map(aluno => {
                     const registros = avaliacoes.filter(item => item.usuario === aluno.usuario);
+                    
+                    let somaKihon = 0, qtdKihon = 0;
+                    let somaKata = 0, qtdKata = 0;
+                    let somaKumite = 0, qtdKumite = 0;
+
+                    registros.forEach(item => {
+                        const notas = item.dados?.notas || {};
+                        if (notas.kihon !== undefined && notas.kihon !== null && notas.kihon !== '') {
+                            somaKihon += Number(notas.kihon);
+                            qtdKihon++;
+                        }
+                        if (notas.kata !== undefined && notas.kata !== null && notas.kata !== '') {
+                            somaKata += Number(notas.kata);
+                            qtdKata++;
+                        }
+                        if (notas.kumite !== undefined && notas.kumite !== null && notas.kumite !== '') {
+                            somaKumite += Number(notas.kumite);
+                            qtdKumite++;
+                        }
+                    });
+
                     const medias = registros
-                        .map(item => Number(item.dados?.notas?.media))
-                        .filter(Number.isFinite);
-                    const media = medias.length
+                        .map(obterMediaAvaliador)
+                        .filter(media => media !== null);
+                    
+                    const mediaGeral = medias.length
                         ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
                         : 'Sem notas';
+
+                    // Constrói o cabeçalho do aluno no e-mail
+                    let cabecalhoAluno = `${aluno.nome} — média final: ${mediaGeral} (${medias.length} avaliação(ões))`;
+                    
+                    // Adiciona as médias consolidadas específicas se houver mais de 1 avaliador
+                    if (medias.length > 1) {
+                        const mediaK = qtdKihon > 0 ? (somaKihon / qtdKihon).toFixed(2) : '-';
+                        const mediaKa = qtdKata > 0 ? (somaKata / qtdKata).toFixed(2) : '-';
+                        const mediaKu = qtdKumite > 0 ? (somaKumite / qtdKumite).toFixed(2) : '-';
+                        cabecalhoAluno += `\r\nMédias Consolidadas: Kihon ${mediaK} | Kata ${mediaKa} | Kumite ${mediaKu}`;
+                    }
 
                     const detalhes = registros.map(item => {
                         const dados = item.dados || {};
@@ -311,7 +361,7 @@
 
                         return [
                             `Avaliador: ${item.avaliador}`,
-                            `Notas: Kihon ${notas.kihon ?? '-'}; Kata ${notas.kata ?? '-'}; Kumite ${notas.kumite ?? '-'}; Perguntas ${notas.perguntas ?? '-'}; Média ${notas.media ?? '-'}`,
+                            `Notas: Kihon ${notas.kihon ?? '-'}; Kata ${notas.kata ?? '-'}; Kumite ${notas.kumite ?? '-'}; Perguntas ${notas.perguntas ?? '-'}; Kata acima da faixa ${notas.kataAcima ?? '-'}; Média do avaliador ${notas.media ?? '-'}`,
                             `Resultado: ${dados.resultado || '-'} | Faixa pretendida: ${dados.faixaPretendida || '-'} | Conceito: ${dados.conceito || '-'}`,
                             `Pontos fortes: ${(dados.pontosFortes || []).join('; ') || '-'}`,
                             `Melhorias: ${(dados.melhorias || []).join('; ') || '-'}`,
@@ -319,7 +369,7 @@
                         ].join('\r\n');
                     }).join('\r\n\r\n');
 
-                    return `${aluno.nome} — média dos avaliadores: ${media} (${medias.length} avaliação(ões))\r\n${detalhes || 'Sem avaliação registrada.'}`;
+                    return `${cabecalhoAluno}\r\n\r\n${detalhes || 'Sem avaliação registrada.'}`;
                 });
 
                 const corpoEmail = [
@@ -343,3 +393,7 @@
     </script>
 </body>
 </html>
+```<ElicitationsGroup>
+</ElicitationsGroup>
+<FollowUp>
+</FollowUp>
