@@ -181,10 +181,6 @@
 
         async function carregarNotas() {
             try {
-                // Aviso de espera para o caso do servidor Render estar a hibernar
-                document.getElementById('semestre').textContent = 'Conectando ao servidor (pode demorar até 2 minutos)...';
-                document.getElementById('mensagem').textContent = '';
-
                 const [respostaAlunos, respostaAvaliacoes] = await Promise.all([
                     chamarApi('/api/exame-avaliacao/alunos'),
                     chamarApi('/api/exame-avaliacao/relatorio')
@@ -203,7 +199,6 @@
                 alunosAprovados = [];
                 avaliacoes = [];
                 desenharTabela();
-                document.getElementById('semestre').textContent = 'Erro de ligação ao servidor.';
                 document.getElementById('mensagem').textContent = erro.message;
             }
         }
@@ -348,14 +343,15 @@
                         ? (medias.reduce((soma, nota) => soma + nota, 0) / medias.length).toFixed(2)
                         : 'Sem notas';
 
-                    // Estrutura visual aprimorada usando apenas caracteres simples
-                    let cabecalhoAluno = `ALUNO(A): ${aluno.nome.toUpperCase()}\r\nMedia Final: ${mediaGeral} (${medias.length} avaliacao(oes))`;
+                    // Constrói o cabeçalho do aluno no e-mail
+                    let cabecalhoAluno = `${aluno.nome} — média final: ${mediaGeral} (${medias.length} avaliação(ões))`;
                     
+                    // Adiciona as médias consolidadas específicas se houver mais de 1 avaliador
                     if (medias.length > 1) {
                         const mediaK = qtdKihon > 0 ? (somaKihon / qtdKihon).toFixed(2) : '-';
                         const mediaKa = qtdKata > 0 ? (somaKata / qtdKata).toFixed(2) : '-';
                         const mediaKu = qtdKumite > 0 ? (somaKumite / qtdKumite).toFixed(2) : '-';
-                        cabecalhoAluno += `\r\nMedias Consolidadas - Kihon: ${mediaK} | Kata: ${mediaKa} \vert{} Kumite:${mediaKu}`;
+                        cabecalhoAluno += `\r\nMédias Consolidadas: Kihon ${mediaK} | Kata ${mediaKa} | Kumite ${mediaKu}`;
                     }
 
                     const detalhes = registros.map(item => {
@@ -364,19 +360,12 @@
                         const observacoes = dados.observacoes || {};
 
                         return [
-                            `AVALIADOR(A): ${item.avaliador}`,
-                            `Resultado: ${dados.resultado || '-'} | Faixa pretendida: ${dados.faixaPretendida \vert{}\vert{} '-'} \vert{} Conceito:${dados.conceito || '-'}`,
-                            ``,
-                            `NOTAS:`,
-                            `Kihon: ${notas.kihon ?? '-'} | Kata: ${notas.kata ?? '-'} \vert{} Kumite: ${notas.kumite ?? '-'}`,
-                            `Perguntas: ${notas.perguntas ?? '-'} | Kata acima: ${notas.kataAcima ?? '-'} \vert{} Media: ${notas.media ?? '-'}`,
-                            ``,
-                            `FEEDBACK:`,
+                            `Avaliador: ${item.avaliador}`,
+                            `Notas: Kihon ${notas.kihon ?? '-'}; Kata ${notas.kata ?? '-'}; Kumite ${notas.kumite ?? '-'}; Perguntas ${notas.perguntas ?? '-'}; Kata acima da faixa ${notas.kataAcima ?? '-'}; Média do avaliador ${notas.media ?? '-'}`,
+                            `Resultado: ${dados.resultado || '-'} | Faixa pretendida: ${dados.faixaPretendida || '-'} | Conceito: ${dados.conceito || '-'}`,
                             `Pontos fortes: ${(dados.pontosFortes || []).join('; ') || '-'}`,
-                            `Pontos a melhorar: ${(dados.melhorias || []).join('; ') || '-'}`,
-                            ``,
-                            `OBSERVACOES:`,
-                            `Kihon: ${observacoes.kihon || '-'} | Kata: ${observacoes.kata || '-'} | Kumite: ${observacoes.kumite || '-'}`
+                            `Melhorias: ${(dados.melhorias || []).join('; ') || '-'}`,
+                            `Observações — Kihon: ${observacoes.kihon || '-'} | Kata: ${observacoes.kata || '-'} | Kumite: ${observacoes.kumite || '-'}`
                         ].join('\r\n');
                     }).join('\r\n\r\n');
 
@@ -384,11 +373,10 @@
                 });
 
                 const corpoEmail = [
-                    `RELATORIO CONSOLIDADO DO EXAME DE FAIXA - ${semestreAtual}`,
-                    'Associacao Atarashii Karate-Do Shotokan',
-                    '====================================================',
+                    `Relatório consolidado do Exame de Faixa — ${semestreAtual}`,
+                    'Associação Atarashii Karatê-Do Shotokan',
                     '',
-                    blocosAlunos.join('\r\n\r\n----------------------------------------------------\r\n\r\n')
+                    blocosAlunos.join('\r\n\r\n----------------------------------------\r\n\r\n')
                 ].join('\r\n');
 
                 const assunto = encodeURIComponent(`Notas do Exame de Faixa - ${semestreAtual}`);
