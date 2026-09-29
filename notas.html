@@ -181,6 +181,10 @@
 
         async function carregarNotas() {
             try {
+                // Reinicia as mensagens ao tentar atualizar
+                document.getElementById('semestre').textContent = 'Conectando ao servidor (isso pode levar até 2 minutos)...';
+                document.getElementById('mensagem').textContent = '';
+                
                 const [respostaAlunos, respostaAvaliacoes] = await Promise.all([
                     chamarApi('/api/exame-avaliacao/alunos'),
                     chamarApi('/api/exame-avaliacao/relatorio')
@@ -199,6 +203,7 @@
                 alunosAprovados = [];
                 avaliacoes = [];
                 desenharTabela();
+                document.getElementById('semestre').textContent = 'Erro ao carregar os dados.';
                 document.getElementById('mensagem').textContent = erro.message;
             }
         }
@@ -359,8 +364,6 @@
                         const notas = dados.notas || {};
                         const observacoes = dados.observacoes || {};
 
-                        const tracos = '   ' + '-'.repeat(40);
-
                         return [
                             `▶ AVALIADOR(A): ${item.avaliador}`,
                             `   Resultado: ${dados.resultado || '-'} | Faixa pretendida: ${dados.faixaPretendida \vert{}\vert{} '-'} \vert{} Conceito:${dados.conceito || '-'}`,
@@ -409,7 +412,3 @@
     </script>
 </body>
 </html>
-```<ElicitationsGroup>
-</ElicitationsGroup>
-<FollowUp>
-</FollowUp>
