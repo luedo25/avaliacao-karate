@@ -360,9 +360,12 @@
     <form id="formAvaliacao">
         <div class="aluno-sticky-bar">
             <div class="form-group">
-                <label for="nome">Aluno aprovado para avaliação:</label>
-                <select id="nome" required>
+                <label for="nomeOficial">Aluno aprovado para avaliação:</label>
+                <select id="nomeOficial">
                     <option value="">-- Selecione um aluno aprovado --</option>
+                </select>
+                <select id="nome" aria-hidden="true" tabindex="-1" style="display:none;">
+                    <option value="">-- Selecione um aluno --</option>
                 </select>
                 <small id="statusRascunho" aria-live="polite">Os dados são salvos automaticamente neste celular.</small>
             </div>
@@ -645,7 +648,8 @@
     const API_URL = 'https://api-associacao-mp.onrender.com';
     const CHAVE_RASCUNHOS = 'atarashii:exame-avaliacao:rascunhos:v1';
     const DATA_AVALIACAO = '06/12/2026';
-    const selectNome = document.getElementById('nome');
+    const selectNome = document.getElementById('nome'); // Seleção interna usada pela ficha.
+    const selectNomeOficial = document.getElementById('nomeOficial');
     const selectPreAvaliacao = document.getElementById('nomePreAvaliacao');
     const statusPreAvaliacao = document.getElementById('statusPreAvaliacao');
     const form = document.getElementById('formAvaliacao');
@@ -654,7 +658,6 @@
     let alunoAtual = '';
     let tipoAvaliacaoAtual = 'oficial';
     let alunosPreAvaliacao = [];
-    let mudandoSelecaoPreAvaliacao = false;
     let avaliadorDaFicha = '';
     let rascunhoAlterado = false;
     let timerAutoSave = null;
@@ -820,11 +823,13 @@
         try {
             const dados = await api('/api/exame-avaliacao/alunos');
             selectNome.innerHTML = '<option value="">-- Selecione um aluno aprovado --</option>';
+            selectNomeOficial.innerHTML = '<option value="">-- Selecione um aluno aprovado --</option>';
             dados.alunos.forEach(aluno => {
                 const opcao = document.createElement('option');
                 opcao.value = aluno.usuario;
                 opcao.textContent = aluno.nome;
-                selectNome.appendChild(opcao);
+                selectNome.appendChild(opcao.cloneNode(true));
+                selectNomeOficial.appendChild(opcao);
             });
             await atualizarAlunosPreAvaliacao(true).catch(() => {});
             const ultimoEhPreAvaliacao = estadoLocal.ultimoTipoAvaliacao === 'pre_avaliacao'
@@ -837,12 +842,14 @@
                 }
                 tipoAvaliacaoAtual = 'pre_avaliacao';
                 selectPreAvaliacao.value = aluno.usuario;
+                selectNomeOficial.value = '';
                 selectNome.value = aluno.usuario;
                 alunoAtual = aluno.usuario;
                 restaurarRascunho(alunoAtual);
             } else if (dados.alunos.some(aluno => aluno.usuario === estadoLocal.ultimoAluno)) {
                 tipoAvaliacaoAtual = 'oficial';
                 selectNome.value = estadoLocal.ultimoAluno;
+                selectNomeOficial.value = estadoLocal.ultimoAluno;
                 alunoAtual = selectNome.value;
                 restaurarRascunho(alunoAtual);
             }
@@ -857,16 +864,22 @@
 
     selectPreAvaliacao.addEventListener('change', () => {
         const usuario = selectPreAvaliacao.value;
-        if (!usuario) return;
+        if (!usuario) {
+            if (tipoAvaliacaoAtual === 'pre_avaliacao') {
+                selectNome.value = '';
+                selectNomeOficial.value = '';
+                trocarAluno('oficial');
+            }
+            return;
+        }
         const aluno = alunosPreAvaliacao.find(item => item.usuario === usuario);
         if (!aluno) return;
         if (![...selectNome.options].some(option => option.value === usuario)) {
             selectNome.add(new Option(`${aluno.nome} — Pré-avaliação`, usuario));
         }
-        mudandoSelecaoPreAvaliacao = true;
+        selectNomeOficial.value = '';
         selectNome.value = usuario;
-        selectNome.dispatchEvent(new Event('change'));
-        mudandoSelecaoPreAvaliacao = false;
+        trocarAluno('pre_avaliacao');
         mostrar(`${aluno.nome} selecionado(a) para pré-avaliação. O registro não altera a aprovação técnica para exame oficial.`);
     });
 
@@ -926,6 +939,8 @@
         form.reset();
         selectNome.value = usuario;
         if (salvo?.dados?.tipoAvaliacao) tipoAvaliacaoAtual = salvo.dados.tipoAvaliacao;
+        selectPreAvaliacao.value = tipoAvaliacaoAtual === 'pre_avaliacao' ? usuario : '';
+        selectNomeOficial.value = tipoAvaliacaoAtual === 'oficial' ? usuario : '';
         campoAvaliador.value = nomeAtual || estadoLocal.avaliador || '';
         avaliadorDaFicha = campoAvaliador.value.trim().replace(/\s+/g, ' ');
         document.getElementById('data').value = DATA_AVALIACAO;
@@ -992,7 +1007,10 @@
             salvarRascunhoLocal(alunoAnterior);
         } else if (!alunoAnterior && rascunhoAlterado && novoAluno) {
             // Se o avaliador preencheu a ficha antes de escolher o primeiro aluno, associa os dados ao aluno selecionado.
+            const tipoAnterior = tipoAvaliacaoAtual;
+            tipoAvaliacaoAtual = novoTipoAvaliacao;
             salvarRascunhoLocal(novoAluno);
+            tipoAvaliacaoAtual = tipoAnterior;
         }
 
         alunoAtual = novoAluno;
@@ -1005,7 +1023,7 @@
     }
 
     function aoEditarFormulario(evento) {
-        if (evento.target === selectNome || evento.target === selectPreAvaliacao) return;
+        if (evento.target === selectNome || evento.target === selectNomeOficial || evento.target === selectPreAvaliacao) return;
         if (evento.target === campoAvaliador) {
             clearTimeout(timerAutoSave);
             salvarNomeAvaliador();
@@ -1142,7 +1160,7 @@
         const usuario = selectNome.value;
         if (!usuario) {
             mostrar('Selecione um aluno antes de resetar a ficha.', true);
-            selectNome.focus();
+            (tipoAvaliacaoAtual === 'pre_avaliacao' ? selectPreAvaliacao : selectNomeOficial).focus();
             return;
         }
         salvarRascunhoPendente();
@@ -1166,10 +1184,10 @@
     document.getElementById('data').value = DATA_AVALIACAO;
     campoAvaliador.value = estadoLocal.avaliador;
     campoAvaliador.placeholder = 'Digite seu nome completo';
-    selectNome.addEventListener('change', () => {
-        const novoTipo = mudandoSelecaoPreAvaliacao ? 'pre_avaliacao' : 'oficial';
-        if (!mudandoSelecaoPreAvaliacao) selectPreAvaliacao.value = '';
-        trocarAluno(novoTipo);
+    selectNomeOficial.addEventListener('change', () => {
+        selectPreAvaliacao.value = '';
+        selectNome.value = selectNomeOficial.value;
+        trocarAluno('oficial');
     });
     form.addEventListener('input', aoEditarFormulario);
     form.addEventListener('change', aoEditarFormulario);
