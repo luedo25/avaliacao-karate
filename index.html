@@ -366,6 +366,13 @@
                 </select>
                 <small id="statusRascunho" aria-live="polite">Os dados são salvos automaticamente neste celular.</small>
             </div>
+            <div class="form-group" style="margin:12px auto 0;max-width:680px;">
+                <label for="nomePreAvaliacao">Aluno que aceitou participar da pré-avaliação:</label>
+                <select id="nomePreAvaliacao">
+                    <option value="">-- Selecione um participante da pré-avaliação --</option>
+                </select>
+                <small id="statusPreAvaliacao" aria-live="polite">Carregando participantes que aceitaram o convite...</small>
+            </div>
         </div>
 
         <h1>Associação Atarashii Karatê-Do Shotokan</h1>
@@ -639,10 +646,15 @@
     const CHAVE_RASCUNHOS = 'atarashii:exame-avaliacao:rascunhos:v1';
     const DATA_AVALIACAO = '06/12/2026';
     const selectNome = document.getElementById('nome');
+    const selectPreAvaliacao = document.getElementById('nomePreAvaliacao');
+    const statusPreAvaliacao = document.getElementById('statusPreAvaliacao');
     const form = document.getElementById('formAvaliacao');
     const campoAvaliador = document.getElementById('avaliador');
     let salvando = false;
     let alunoAtual = '';
+    let tipoAvaliacaoAtual = 'oficial';
+    let alunosPreAvaliacao = [];
+    let mudandoSelecaoPreAvaliacao = false;
     let avaliadorDaFicha = '';
     let rascunhoAlterado = false;
     let timerAutoSave = null;
@@ -660,11 +672,12 @@
             return {
                 avaliador: String(estado.avaliador || ''),
                 ultimoAluno: String(estado.ultimoAluno || ''),
+                ultimoTipoAvaliacao: estado.ultimoTipoAvaliacao === 'pre_avaliacao' ? 'pre_avaliacao' : 'oficial',
                 rascunhos: estado.rascunhos && typeof estado.rascunhos === 'object' ? estado.rascunhos : {}
             };
         } catch (erro) {
             console.warn('Não foi possível ler os rascunhos locais:', erro);
-            return { avaliador: '', ultimoAluno: '', rascunhos: {} };
+            return { avaliador: '', ultimoAluno: '', ultimoTipoAvaliacao: 'oficial', rascunhos: {} };
         }
     }
 
@@ -778,6 +791,30 @@
         return true;
     }
 
+    async function atualizarAlunosPreAvaliacao(silencioso = false) {
+        const selecaoAnterior = selectPreAvaliacao.value;
+        try {
+            const resposta = await api('/api/exame-avaliacao/pre-avaliacao/alunos');
+            alunosPreAvaliacao = Array.isArray(resposta.alunos) ? resposta.alunos : [];
+            selectPreAvaliacao.innerHTML = '<option value="">-- Selecione um participante da pré-avaliação --</option>';
+            alunosPreAvaliacao.forEach(aluno => {
+                const opcao = document.createElement('option');
+                opcao.value = aluno.usuario;
+                opcao.textContent = `${aluno.nome}${aluno.faixa ? ` — ${aluno.faixa}` : ''}`;
+                selectPreAvaliacao.appendChild(opcao);
+            });
+            if (alunosPreAvaliacao.some(aluno => aluno.usuario === selecaoAnterior)) {
+                selectPreAvaliacao.value = selecaoAnterior;
+            }
+            statusPreAvaliacao.textContent = alunosPreAvaliacao.length
+                ? `${alunosPreAvaliacao.length} aluno(s) aceitaram participar. A ficha será registrada como pré-avaliação.`
+                : 'Nenhum aluno aceitou participar da pré-avaliação neste semestre.';
+        } catch (erro) {
+            statusPreAvaliacao.textContent = `Não foi possível atualizar os participantes: ${erro.message}`;
+            throw erro;
+        }
+    }
+
     async function carregarAlunos() {
         if (!await configurarApi()) return;
         try {
@@ -789,7 +826,22 @@
                 opcao.textContent = aluno.nome;
                 selectNome.appendChild(opcao);
             });
-            if (dados.alunos.some(aluno => aluno.usuario === estadoLocal.ultimoAluno)) {
+            await atualizarAlunosPreAvaliacao(true).catch(() => {});
+            const ultimoEhPreAvaliacao = estadoLocal.ultimoTipoAvaliacao === 'pre_avaliacao'
+                && alunosPreAvaliacao.some(aluno => aluno.usuario === estadoLocal.ultimoAluno);
+            if (ultimoEhPreAvaliacao) {
+                const aluno = alunosPreAvaliacao.find(item => item.usuario === estadoLocal.ultimoAluno);
+                if (![...selectNome.options].some(option => option.value === aluno.usuario)) {
+                    const opcao = new Option(`${aluno.nome} — Pré-avaliação`, aluno.usuario);
+                    selectNome.add(opcao);
+                }
+                tipoAvaliacaoAtual = 'pre_avaliacao';
+                selectPreAvaliacao.value = aluno.usuario;
+                selectNome.value = aluno.usuario;
+                alunoAtual = aluno.usuario;
+                restaurarRascunho(alunoAtual);
+            } else if (dados.alunos.some(aluno => aluno.usuario === estadoLocal.ultimoAluno)) {
+                tipoAvaliacaoAtual = 'oficial';
                 selectNome.value = estadoLocal.ultimoAluno;
                 alunoAtual = selectNome.value;
                 restaurarRascunho(alunoAtual);
@@ -803,10 +855,26 @@
         }
     }
 
+    selectPreAvaliacao.addEventListener('change', () => {
+        const usuario = selectPreAvaliacao.value;
+        if (!usuario) return;
+        const aluno = alunosPreAvaliacao.find(item => item.usuario === usuario);
+        if (!aluno) return;
+        if (![...selectNome.options].some(option => option.value === usuario)) {
+            selectNome.add(new Option(`${aluno.nome} — Pré-avaliação`, usuario));
+        }
+        mudandoSelecaoPreAvaliacao = true;
+        selectNome.value = usuario;
+        selectNome.dispatchEvent(new Event('change'));
+        mudandoSelecaoPreAvaliacao = false;
+        mostrar(`${aluno.nome} selecionado(a) para pré-avaliação. O registro não altera a aprovação técnica para exame oficial.`);
+    });
+
     function coletarAvaliacao(usuario = selectNome.value) {
         calcularAutomatico();
         return {
             usuario,
+            tipoAvaliacao: tipoAvaliacaoAtual,
             avaliador: limparNomeAvaliador(),
             faixaAtual: document.getElementById('faixa-atual').value,
             faixaPretendida: document.getElementById('faixa-pretendida').value,
@@ -846,6 +914,7 @@
             dados
         };
         estadoLocal.ultimoAluno = usuario;
+        estadoLocal.ultimoTipoAvaliacao = tipoAvaliacaoAtual;
         rascunhoAlterado = false;
         return gravarEstadoLocal();
     }
@@ -856,6 +925,7 @@
         const nomeAtual = campoAvaliador.value;
         form.reset();
         selectNome.value = usuario;
+        if (salvo?.dados?.tipoAvaliacao) tipoAvaliacaoAtual = salvo.dados.tipoAvaliacao;
         campoAvaliador.value = nomeAtual || estadoLocal.avaliador || '';
         avaliadorDaFicha = campoAvaliador.value.trim().replace(/\s+/g, ' ');
         document.getElementById('data').value = DATA_AVALIACAO;
@@ -913,7 +983,7 @@
         }
     }
 
-    function trocarAluno() {
+    function trocarAluno(novoTipoAvaliacao = tipoAvaliacaoAtual) {
         const novoAluno = selectNome.value;
         const alunoAnterior = alunoAtual;
         clearTimeout(timerAutoSave);
@@ -926,14 +996,16 @@
         }
 
         alunoAtual = novoAluno;
+        tipoAvaliacaoAtual = novoTipoAvaliacao;
         estadoLocal.ultimoAluno = novoAluno;
+        estadoLocal.ultimoTipoAvaliacao = tipoAvaliacaoAtual;
         gravarEstadoLocal();
         if (alunoAnterior || !rascunhoAlterado) restaurarRascunho(novoAluno);
         rascunhoAlterado = false;
     }
 
     function aoEditarFormulario(evento) {
-        if (evento.target === selectNome) return;
+        if (evento.target === selectNome || evento.target === selectPreAvaliacao) return;
         if (evento.target === campoAvaliador) {
             clearTimeout(timerAutoSave);
             salvarNomeAvaliador();
@@ -1094,7 +1166,11 @@
     document.getElementById('data').value = DATA_AVALIACAO;
     campoAvaliador.value = estadoLocal.avaliador;
     campoAvaliador.placeholder = 'Digite seu nome completo';
-    selectNome.addEventListener('change', trocarAluno);
+    selectNome.addEventListener('change', () => {
+        const novoTipo = mudandoSelecaoPreAvaliacao ? 'pre_avaliacao' : 'oficial';
+        if (!mudandoSelecaoPreAvaliacao) selectPreAvaliacao.value = '';
+        trocarAluno(novoTipo);
+    });
     form.addEventListener('input', aoEditarFormulario);
     form.addEventListener('change', aoEditarFormulario);
     window.addEventListener('pagehide', salvarRascunhoPendente);
@@ -1111,6 +1187,9 @@
         document.getElementById('modalEnvio').close();
     });
     document.addEventListener('DOMContentLoaded', carregarAlunos);
+    setInterval(() => {
+        if (document.visibilityState === 'visible') atualizarAlunosPreAvaliacao(true).catch(() => {});
+    }, 30000);
 </script>
 
 </body>

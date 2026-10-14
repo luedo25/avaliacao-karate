@@ -159,9 +159,10 @@
     <script>
         const API_URL = 'https://api-associacao-mp.onrender.com';
 
-        let alunosAprovados = [];
+        let alunosExame = [];
         let avaliacoes = [];
         let semestreAtual = '';
+        let carregandoNotas = false;
 
         async function chamarApi(caminho, opcoes = {}) {
             const resposta = await fetch(`${API_URL}${caminho}`, {
@@ -180,36 +181,47 @@
         }
 
         async function carregarNotas() {
+            if (carregandoNotas) return;
+            carregandoNotas = true;
             try {
-                const [respostaAlunos, respostaAvaliacoes] = await Promise.all([
+                const [respostaAlunos, respostaPreAvaliacao, respostaAvaliacoes] = await Promise.all([
                     chamarApi('/api/exame-avaliacao/alunos'),
+                    chamarApi('/api/exame-avaliacao/pre-avaliacao/alunos'),
                     chamarApi('/api/exame-avaliacao/relatorio')
                 ]);
 
-                alunosAprovados = respostaAlunos.alunos || [];
+                const aprovados = (respostaAlunos.alunos || []).map(aluno => ({ ...aluno, modalidade: 'Exame oficial' }));
+                const aprovadosIds = new Set(aprovados.map(aluno => String(aluno.usuario).toLowerCase()));
+                const participantesPreAvaliacao = (respostaPreAvaliacao.alunos || [])
+                    .filter(aluno => !aprovadosIds.has(String(aluno.usuario).toLowerCase()))
+                    .map(aluno => ({ ...aluno, modalidade: 'Pré-avaliação' }));
+                alunosExame = [...aprovados, ...participantesPreAvaliacao];
                 avaliacoes = respostaAvaliacoes.avaliacoes || [];
                 semestreAtual = respostaAvaliacoes.semestre || respostaAlunos.semestre || '';
 
                 desenharTabela();
                 document.getElementById('semestre').textContent = `Semestre: ${semestreAtual}`;
-                document.getElementById('mensagem').textContent = alunosAprovados.length
-                    ? 'Notas atualizadas. A lista mostra somente os alunos aprovados para avaliação.'
-                    : 'Não há alunos aprovados para avaliação neste semestre.';
+                const qtdPre = participantesPreAvaliacao.length;
+                document.getElementById('mensagem').textContent = alunosExame.length
+                    ? `Notas atualizadas. ${aprovados.length} aluno(s) aprovado(s) para exame e ${qtdPre} participante(s) da pré-avaliação.`
+                    : 'Não há alunos aprovados nem participantes aceitos para avaliação neste semestre.';
             } catch (erro) {
-                alunosAprovados = [];
+                alunosExame = [];
                 avaliacoes = [];
                 desenharTabela();
                 document.getElementById('mensagem').textContent = erro.message;
+            } finally {
+                carregandoNotas = false;
             }
         }
 
         function desenharTabela() {
             document.getElementById('cabecalho').innerHTML = `<tr>
-                <th>Aluno</th><th>Avaliador</th><th>Kihon</th><th>Kata</th><th>Kumite</th>
+                <th>Aluno</th><th>Modalidade</th><th>Avaliador</th><th>Kihon</th><th>Kata</th><th>Kumite</th>
                 <th>Perguntas</th><th>Kata acima da faixa</th><th>Média do avaliador</th>
             </tr>`;
 
-            const linhas = alunosAprovados.map(aluno => {
+            const linhas = alunosExame.map(aluno => {
                 const registros = avaliacoes
                     .filter(item => item.usuario === aluno.usuario)
                     .sort((a, b) => String(a.avaliador || '').localeCompare(String(b.avaliador || ''), 'pt-BR'));
@@ -251,6 +263,7 @@
                         const notas = item.dados?.notas || {};
                         return `<tr>
                             <td>${escaparHtml(aluno.nome)}</td>
+                            <td>${escaparHtml(item.dados?.tipoAvaliacao === 'pre_avaliacao' ? 'Pré-avaliação' : 'Exame oficial')}</td>
                             <td>${escaparHtml(item.avaliador)}</td>
                             <td class="nota">${formatarNota(notas.kihon)}</td>
                             <td class="nota">${formatarNota(notas.kata)}</td>
@@ -260,10 +273,10 @@
                             <td class="nota media-final">${formatarNota(notas.media)}</td>
                         </tr>`;
                     }).join('')
-                    : `<tr><td>${escaparHtml(aluno.nome)}</td><td colspan="7" class="pendente">Sem avaliações registradas</td></tr>`;
+                    : `<tr><td>${escaparHtml(aluno.nome)}</td><td>${escaparHtml(aluno.modalidade)}</td><td colspan="7" class="pendente">Sem avaliações registradas</td></tr>`;
                 
                 const linhaConsolidada = `<tr class="linha-media">
-                    <td colspan="2">Média consolidada de ${medias.length} avaliador(es)</td>
+                    <td colspan="3">Média consolidada de ${medias.length} avaliador(es)</td>
                     <td class="nota media-final">${mediaKihonStr}</td>
                     <td class="nota media-final">${mediaKataStr}</td>
                     <td class="nota media-final">${mediaKumiteStr}</td>
@@ -271,12 +284,12 @@
                     <td class="nota media-final">${mediaConsolidada}</td>
                 </tr>`;
                 
-                return `<tr class="aluno-cabecalho"><td colspan="8">${escaparHtml(aluno.nome)}</td></tr>${linhasAvaliacoes}${linhaConsolidada}`;
+                return `<tr class="aluno-cabecalho"><td colspan="9">${escaparHtml(aluno.nome)} <span>· ${escaparHtml(aluno.modalidade)}</span></td></tr>${linhasAvaliacoes}${linhaConsolidada}`;
             });
 
             document.getElementById('corpo').innerHTML = linhas.length
                 ? linhas.join('')
-                : '<tr><td colspan="100%">Nenhum aluno aprovado para avaliação.</td></tr>';
+                : '<tr><td colspan="100%">Nenhum aluno aprovado ou participante aceito para avaliação.</td></tr>';
         }
 
         function escaparHtml(valor) {
@@ -308,14 +321,14 @@
                 }
 
                 const confirmacao = confirm(
-                    'Preparar um único rascunho de email com as avaliações dos alunos aprovados?'
+                    'Preparar um único rascunho de email com as avaliações do exame e da pré-avaliação?'
                 );
                 if (!confirmacao) return;
 
                 const separador = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
                 const separadorSecundario = '────────────────────────────────────────';
 
-                const blocosAlunos = alunosAprovados.map(aluno => {
+                const blocosAlunos = alunosExame.map(aluno => {
                     const registros = avaliacoes.filter(item => item.usuario === aluno.usuario);
 
                     let somaKihon = 0, qtdKihon = 0;
@@ -348,6 +361,7 @@
 
                     const linhasResumo = [
                         `ALUNO: ${aluno.nome}`,
+                        `MODALIDADE: ${aluno.modalidade}`,
                         `MÉDIA FINAL: ${mediaGeral}  |  AVALIAÇÕES: ${medias.length}`
                     ];
 
@@ -365,7 +379,7 @@
 
                         return [
                             `${separadorSecundario}`,
-                            `AVALIAÇÃO ${indice + 1}  |  AVALIADOR: ${item.avaliador}`,
+                            `AVALIAÇÃO ${indice + 1}  |  MODALIDADE: ${dados.tipoAvaliacao === 'pre_avaliacao' ? 'PRÉ-AVALIAÇÃO' : 'EXAME OFICIAL'}  |  AVALIADOR: ${item.avaliador}`,
                             '',
                             'NOTAS',
                             `Kihon: ${notas.kihon ?? '-'}  |  Kata: ${notas.kata ?? '-'}  |  Kumite: ${notas.kumite ?? '-'}`,
@@ -409,6 +423,12 @@
         }
 
         document.addEventListener('DOMContentLoaded', carregarNotas);
+        setInterval(() => {
+            if (document.visibilityState === 'visible') carregarNotas();
+        }, 30000);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') carregarNotas();
+        });
     </script>
 </body>
 </html>
